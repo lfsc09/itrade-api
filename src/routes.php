@@ -10,7 +10,7 @@ $app = new \Slim\App(slimContainerConfig());
  * ROTA DE LOGIN
  * 
  */
-$app->post('/login', AuthController::class . ':login');
+$app->post('/auth', AuthController::class . ':authenticate');
 
 /**
  * ROTAS DE USUARIOS

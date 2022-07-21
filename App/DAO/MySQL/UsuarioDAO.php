@@ -34,6 +34,6 @@ class UsuarioDAO extends Connection
 
     public function new_usuario($data)
     {
-        return password_hash($data, PASSWORD_ARGON2I);
+        return $data;
     }
 }

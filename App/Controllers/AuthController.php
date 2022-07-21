@@ -10,7 +10,7 @@ use \Firebase\JWT\JWT;
 
 final class AuthController
 {
-    public function login(Request $request, Response $response, array $args)
+    public function authenticate(Request $request, Response $response, array $args)
     {
         $fetched_data = $request->getParsedBody();
 
@@ -21,7 +21,7 @@ final class AuthController
         if (is_null($usuario))
             return $response->withStatus(401);
             
-        if (!password_verify($fetched_data['password'], $usuario['senha']))
+        if ($fetched_data['password'] !== $usuario['senha'])
             return $response->withStatus(401);
 
         $tokenDAO = new TokenDAO();
@@ -50,7 +50,7 @@ final class AuthController
             $tokenDAO->new_token($tokenData);
         }
 
-        $response = $response->withJson(['data' => $tokenData['token']], 200);
+        $response = $response->withJson(['token' => $tokenData['token']], 200);
         return $response;
     }
 }
