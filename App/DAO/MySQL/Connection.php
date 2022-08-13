@@ -20,7 +20,7 @@ abstract class Connection {
     }
 
     /**
-     * Retorna o Type da variavel @var value para usar no \PDO::statement->bindValue
+     * Retorna o Type da variavel @param value para usar no \PDO::statement->bindValue
      */
     public function bindValue_Type($value){
         if (is_int($value))

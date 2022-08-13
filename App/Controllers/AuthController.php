@@ -12,6 +12,7 @@ final class AuthController
 {
     public function authenticate(Request $request, Response $response, array $args)
     {
+        $ip = $request->getServerParams()['REMOTE_ADDR'];
         $fetched_data = $request->getParsedBody();
 
         // Busca o usuario e verifica a senha
@@ -32,7 +33,7 @@ final class AuthController
             $tokenData = [
                 'criado_em' => (new \DateTime())->format('Y-m-d H:i:s'),
                 'expira_em' => (new \DateTime())->modify('+1 day')->format('Y-m-d H:i:s'),
-                'ip' => '',
+                'ip' => $ip,
                 'id_usuario' => $usuario['id']
             ];
             $tokenPayload = [
