@@ -11,29 +11,74 @@ class UsuarioDAO extends Connection
     }
 
     /**
-     * Listar Usuários.
+     * Retorna a lista de usuarios no sistema (Para DatasetController::list_edita)
+     * 
+     * @param id_usuario : Id do usuario fazendo a requisição, para não ser retornado na lista
      */
-    public function list()
+    public function dataset__list_edit($id_usuario)
     {
-        $usuarios = $this->pdo->query('SELECT * FROM usuario')->fetchAll(\PDO::FETCH_ASSOC);
-        return $usuarios;
+        $statement = $this->pdo->prepare('SELECT id,usuario,nome FROM usuario WHERE id != :id_usuario');
+        $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
+        $statement->execute();
+        $usuarios = $statement->fetchAll(\PDO::FETCH_ASSOC);
+        return ['data' => $usuarios];
     }
 
     /**
-     * Busca o Usuário pela coluna $usuario.
+     * Verifica e retorna os dados que serão usados na autenticação do Usuário
      * 
+     * @param array fetched_data = [
+     *      'usuario'  => @var string Usuário do Sistema
+     *      'password' => @var string Senha do Usuário
+     * ]
      */
-    public function auth_usuario(string $usuario)
+    private function auth_usuario__fetchedData($fetched_data)
     {
-        $statement = $this->pdo->prepare('SELECT id,usuario,nome,senha FROM usuario WHERE usuario = :usuario');
-        $statement->bindParam(':usuario', $usuario);
-        $statement->execute();
-        $usuario = $statement->fetchAll(\PDO::FETCH_ASSOC);
-        return $usuario[0] ?? NULL;
+        // Itens Obrigatórios
+        if (empty($fetched_data))
+            return ['status' => 0, 'error' => 'Sem dados passados', 'treated_data' => NULL];
+        if (!isset($fetched_data['usuario']) || $fetched_data['usuario'] === '')
+            return ['status' => 0, 'error' => 'Usuário é obrigatório', 'treated_data' => NULL];
+        if (!isset($fetched_data['password']) || $fetched_data['password'] === '')
+            return ['status' => 0, 'error' => 'Senha é obrigatória', 'treated_data' => NULL];
+
+        // Trata dados
+        $treated_data = [
+            'usuario' => $fetched_data['usuario'],
+            'password' => $fetched_data['password']
+        ];
+
+        return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
     }
 
-    public function new_usuario($data)
+    /**
+     * Retorna os dados do usuario passado para fins de autenticação e criação do Token.
+     * 
+     * @param usuario : Login do usuario a ser autenticado
+     */
+    public function auth_usuario($fetched_data)
     {
-        return $data;
+        [
+            'status' => $status,
+            'error' => $error,
+            'treated_data' => [
+                'usuario' => $usuario,
+                'password' => $password
+            ]
+        ] = $this->auth_usuario__fetchedData($fetched_data);
+
+        if ($status === 0)
+            return ['status' => 0, 'error' => $error, 'data' => NULL];
+        
+        $statement = $this->pdo->prepare('SELECT id,usuario,nome,senha FROM usuario WHERE usuario = :usuario');
+        $statement->bindValue(':usuario', $usuario, $this->bindValue_Type($usuario));
+        $statement->execute();
+        $usuario = $statement->fetch(\PDO::FETCH_ASSOC);
+
+        if ($usuario === false || $password !== $usuario['senha'])
+            return ['status' => 0, 'error' => 'Credenciais Inexistentes', 'data' => NULL];
+
+        return ['status' => 1, 'error' => '', 'data' => $usuario];
     }
+
 }

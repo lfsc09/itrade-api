@@ -18,4 +18,18 @@ abstract class Connection {
         $this->pdo = new \PDO("mysql:host={$host};dbname={$dbname};port={$port}", $user, $pass);
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
     }
+
+    /**
+     * Retorna o Type da variavel @var value para usar no \PDO::statement->bindValue
+     */
+    public function bindValue_Type($value){
+        if (is_int($value))
+            return \PDO::PARAM_INT;
+        else if (is_bool($value))
+            return \PDO::PARAM_BOOL;
+        else if (is_null($value))
+            return \PDO::PARAM_NULL;
+        else
+            return \PDO::PARAM_STR;
+    }
 }
