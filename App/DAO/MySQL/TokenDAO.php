@@ -2,6 +2,8 @@
 
 namespace App\DAO\MySQL;
 
+use PDOException;
+
 class TokenDAO extends Connection
 {
 
@@ -14,7 +16,7 @@ class TokenDAO extends Connection
      * Busca um Token válido do Usuário.
      * 
      */
-    public function search_token($id_usuario)
+    public function search_token($id_usuario = -1)
     {
         $statement = $this->pdo->prepare('SELECT expira_em,token FROM token WHERE id_usuario = :id_usuario AND expira_em >= NOW()');
         $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
@@ -27,14 +29,25 @@ class TokenDAO extends Connection
      * Guarda no DB o novo Token gerado do Usuário.
      * 
      */
-    public function new_token($data)
+    public function new_token($fetched_data = [])
     {
-        $statement = $this->pdo->prepare('INSERT INTO token (criado_em,expira_em,token,id_usuario,ip) VALUES (:criado_em,:expira_em,:token,:id_usuario,:ip)');
-        $statement->bindValue(':criado_em', $data['criado_em']);
-        $statement->bindValue(':expira_em', $data['expira_em']);
-        $statement->bindValue(':token', $data['token']);
-        $statement->bindValue(':id_usuario', $data['id_usuario']);
-        $statement->bindValue(':ip', $data['ip']);
-        $statement->execute();
+        try {
+            $this->pdo->beginTransaction();
+
+            $statement = $this->pdo->prepare('INSERT INTO token (criado_em,expira_em,token,id_usuario,ip) VALUES (:criado_em,:expira_em,:token,:id_usuario,:ip)');
+            $statement->bindValue(':criado_em', $fetched_data['criado_em']);
+            $statement->bindValue(':expira_em', $fetched_data['expira_em']);
+            $statement->bindValue(':token', $fetched_data['token']);
+            $statement->bindValue(':id_usuario', $fetched_data['id_usuario']);
+            $statement->bindValue(':ip', $fetched_data['ip']);
+            $statement->execute();
+
+            $this->pdo->commit();
+            return ['status' => 1, 'error' => ''];
+        }
+        catch (\PDOException $exception) {
+            $this->pdo->rollBack();
+            return ['status' => 0, 'error' => 'Erro ao gerar um novo Token'];
+        }
     }
 }

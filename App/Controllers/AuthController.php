@@ -45,7 +45,13 @@ final class AuthController
             ];
             $tokenData['token'] = JWT::encode($tokenPayload, getenv('JWT_SECRET_KEY'));
 
-            $tokenDAO->new_token($tokenData);
+            [ 'status' => $status, 'error' => $error ] = $tokenDAO->new_token($tokenData);
+
+            // Token não foi salvo
+            if ($status === 0){
+                $response = $response->withStatus(500)->write($error);
+                return $response;
+            }
         }
 
         $response = $response->withJson(['token' => $tokenData['token']], 200);

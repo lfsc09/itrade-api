@@ -2,21 +2,14 @@
 
 namespace App\DAO\MySQL;
 
+use PDOException;
+
 class DatasetDAO extends Connection
 {
 
     public function __construct()
     {
         parent::__construct();
-    }
-
-    /**
-     * Retorna a lista de Datasets
-     */
-    public function list()
-    {
-        $datasets = $this->pdo->query('SELECT * FROM rv__dataset')->fetchAll(\PDO::FETCH_ASSOC);
-        return $datasets;
     }
 
     /**
@@ -30,6 +23,9 @@ class DatasetDAO extends Connection
      */
     public function list_datagrid($page, $pageSize, $filters, $sorting, $id_usuario)
     {
+        if (!is_numeric($page) || !is_numeric($pageSize) || !is_array($filters) || !is_array($sorting))
+            return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
+
         $offset = $page * $pageSize;
 
         /**
@@ -39,22 +35,30 @@ class DatasetDAO extends Connection
         $selectClause = ['rvd.*', 'crvo.qtd_ops'];
 
         // Prepara o SEARCHING
+        // 'compare' : Tipo de comparação LIKE ou =
+        // 'strict'  : Use para apendar % no inicio e/ou final (Ou vazio se não for necessário)
+        $validFilterColumns = [
+            'tipo' => [
+                'col' => 'rvd.nome',
+                'compare' => '=',
+                'strict' => ['start' => '', 'end' => '']
+            ],
+            'situacao' => [
+                'col' => 'rvd.situacao',
+                'compare' => '=',
+                'strict' => ['start' => '', 'end' => '']
+            ]
+        ];
         $whereClause = [
             "rvd_u.id_usuario = {$id_usuario}"
         ];
         foreach ($filters as $col_name => $values){
             $colClause = [];
-            if ($col_name === 'nome'){
-                foreach ($values as $i => $value){
-                    $colClause[] = "rvd.{$col_name} LIKE %:{$col_name}_{$i}%";
-                    $queryParams[":{$col_name}_{$i}"] = $value;
-                }
-            }
-            else{
-                foreach ($values as $i => $value){
-                    $colClause[] = "rvd.{$col_name} = :{$col_name}_{$i}";
-                    $queryParams[":{$col_name}_{$i}"] = $value;
-                }
+             if (!array_key_exists($col_name, $validFilterColumns))
+                return ['status' => 0, 'error' => "'{$col_name}' não é valido", 'data' => NULL];
+            foreach ($values as $i => $value){
+                $colClause[] = $validFilterColumns[$col_name]['col'] . ' ' . $validFilterColumns[$col_name]['compare'] . ' ' . ":{$col_name}_{$i}";
+                $queryParams[":{$col_name}_{$i}"] = $validFilterColumns[$col_name]['strict']['start'] . $value . $validFilterColumns[$col_name]['strict']['end'];
             }
             $whereClause[] = '(' . implode(' OR ', $colClause) . ')';
         }
@@ -115,13 +119,13 @@ class DatasetDAO extends Connection
             ];
         }
 
-        return ['data' => ['rowCount' => $total_rows, 'rows' => $datasets]];
+        return ['status' => 1, 'error' => '', 'data' => ['rowCount' => $total_rows, 'rows' => $datasets]];
     }
 
     /**
      * Retornar dados do Dataset para Edição
      */
-    public function list_edit($id_dataset, $id_usuario)
+    public function list_edit($id_dataset = -1, $id_usuario = -1)
     {
         $selectClause = ['rvd.id', 'rvd.nome', 'rvd.situacao', 'rvd.tipo', 'rvd.observacao', 'IFNULL(crvd_u.usuarios, "") AS usuarios'];
         $selectSQL = implode(',', $selectClause);
@@ -131,6 +135,20 @@ class DatasetDAO extends Connection
         $statement->execute();
         $dataset = $statement->fetch(\PDO::FETCH_ASSOC);
         return ['data' => $dataset ?: NULL];
+    }
+
+    /**
+     * Retorna a lista de usuarios no sistema (Para DatasetController::list_edita)
+     * 
+     * @param id_usuario : Id do usuario fazendo a requisição, para não ser retornado na lista
+     */
+    public function list_edit__usuario($id_usuario = -1)
+    {
+        $statement = $this->pdo->prepare('SELECT id,usuario,nome FROM usuario WHERE id != :id_usuario');
+        $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
+        $statement->execute();
+        $usuarios = $statement->fetchAll(\PDO::FETCH_ASSOC);
+        return ['data' => $usuarios];
     }
 
     /**
@@ -144,7 +162,7 @@ class DatasetDAO extends Connection
      *      'observacao' => @var string Observações do Dataset
      * ]
      */
-    private function new_dataset__fetchedData($fetched_data)
+    private function new_dataset__fetchedData($fetched_data = [])
     {
         // Itens Obrigatórios
         if (empty($fetched_data))
@@ -175,11 +193,161 @@ class DatasetDAO extends Connection
     /**
      * Recebe dados de Dataset para criar um novo
      */
-    public function new_dataset($fetched_data, $id_usuario)
+    public function new_dataset($fetched_data = [], $id_usuario = -1)
     {
         [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->new_dataset__fetchedData($fetched_data);
         if ($status === 0)
             return ['status' => 0, 'error' => $error];
-        return ['status' => 1, 'error' => ''];
+
+        try {
+            $this->pdo->beginTransaction();
+            // Cria o Dataset
+            $statement = $this->pdo->prepare('INSERT INTO rv__dataset (id_usuario_criador,nome,data_atualizacao,situacao,tipo,observacao) VALUES (:id_usuario_criador, :nome, NOW(), :situacao, :tipo, :observacao)');
+            $statement->bindValue(':id_usuario_criador', $id_usuario, $this->bindValue_Type($id_usuario));
+            $statement->bindValue(':nome', $treated_data['nome'], $this->bindValue_Type($treated_data['nome']));
+            $statement->bindValue(':situacao', $treated_data['situacao'], $this->bindValue_Type($treated_data['situacao']));
+            $statement->bindValue(':tipo', $treated_data['tipo'], $this->bindValue_Type($treated_data['tipo']));
+            $statement->bindValue(':observacao', $treated_data['observacao'], $this->bindValue_Type($treated_data['observacao']));
+            $statement->execute();
+
+            $id_dataset = $this->pdo->lastInsertId();
+            // Adiciona os usuarios com acesso ao Dataset (Próprio usuario incluso)
+            // Coloca por padrão o id do usuario criador
+            $treated_data['usuarios'][] = $id_usuario;
+            $insertClause = [];
+            $queryParams = [':id_dataset' => $id_dataset];
+            foreach ($treated_data['usuarios'] as $i => $id_usuario){
+                $insertClause[] = "(:id_dataset, :id_usuario_{$i})";
+                $queryParams[":id_usuario_{$i}"] = $id_usuario;
+            }
+            $insertSQL = implode(',', $insertClause);
+            $statement = $this->pdo->prepare("INSERT INTO rv__dataset__usuario (id_dataset,id_usuario) VALUES {$insertSQL}");
+            foreach ($queryParams as $name => $value)
+                $statement->bindValue($name, $value, $this->bindValue_Type($value));
+            $statement->execute();
+            $this->pdo->commit();
+            return ['status' => 1, 'error' => ''];
+        }
+        catch (\PDOException $exception) {
+            $this->pdo->rollBack();
+            if (in_array($exception->getCode(), [1062, 23000]))
+                $error = 'Dataset já cadastrado';
+            else
+                $error = 'Erro ao cadastrar este Dataset';
+            return ['status' => 0, 'error' => $error];
+        }
+    }
+
+    /**
+     * Verifica e retorna os dados para serem editados (Edição do Dataset)
+     * 
+     * @param array fetched_data = [
+     *      'nome'       => @var string Nome do Dataset
+     *      'situacao'   => @var int Situação do Dataset
+     *      'tipo'       => @var int Tipo do Dataset
+     *      'usuarios'   => @var array Usuários com acesso ao Dataset
+     *      'observacao' => @var string Observações do Dataset
+     * ]
+     */
+    private function edit_dataset__fetchedData($fetched_data = [])
+    {
+        // Itens Obrigatórios
+        if (empty($fetched_data))
+            return ['status' => 0, 'error' => 'Sem dados passados', 'treated_data' => NULL];
+
+        $treated_data = [];
+
+        // Trata dados
+        if (isset($fetched_data['nome']) && $fetched_data['nome'] !== '')
+            $treated_data['nome'] = $fetched_data['nome'];
+        if (isset($fetched_data['situacao']) && $fetched_data['situacao'] !== '')
+            $treated_data['situacao'] = (int) $fetched_data['situacao'];
+        if (isset($fetched_data['tipo']) && $fetched_data['tipo'] !== '')
+            $treated_data['tipo'] = (int) $fetched_data['tipo'];
+        if (isset($fetched_data['observacao']) && $fetched_data['observacao'] !== '')
+            $treated_data['observacao'] = $fetched_data['observacao'];
+
+        // Trata array de usuarios para pegar apenas o ID deles
+        if (isset($fetched_data['usuarios']) && is_array($fetched_data['usuarios']))
+            $treated_data['usuarios'] = array_map(fn ($usuario) => $usuario['id'], $fetched_data['usuarios']);
+        
+        return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
+    }
+
+    /**
+     * Recebe dados do Dataset para editar
+     */
+    public function edit_dataset($fetched_data = [], $id_dataset = -1, $id_usuario = -1)
+    {
+        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->edit_dataset__fetchedData($fetched_data);
+        if ($status === 0)
+            return ['status' => 0, 'error' => $error];
+
+        try {
+            $this->pdo->beginTransaction();
+            // Checa para ver se o usuario tem acesso ao arcabouço
+            $statement = $this->pdo->prepare('SELECT rvd.id_usuario_criador FROM rv__dataset__usuario rvd_u INNER JOIN rv__dataset rvd ON rvd_u.id_dataset=rvd.id WHERE rvd_u.id_dataset = :id_dataset AND rvd_u.id_usuario = :id_usuario');
+            $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+            $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
+            $statement->execute();
+            $id_criador__raw = $statement->fetch(\PDO::FETCH_ASSOC);
+            $id_criador = $id_criador__raw['id_usuario_criador'] ?: -1;
+            if ($id_criador !== $id_usuario)
+                return ['status' => 0, 'error' => 'Apenas o criador pode alterar este Dataset'];
+
+            // Atualiza os usuarios com acesso ao Dataset
+            if (isset($treated_data['usuarios'])){
+                // Remove o acesso de todos
+                $statement = $this->pdo->prepare('DELETE FROM rv__dataset__usuario WHERE id_dataset = :id_dataset');
+                $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+                $statement->execute();
+                // Coloca por padrão o id do usuario criador
+                $treated_data['usuarios'][] = $id_usuario;
+                // Adiciona os usuarios com acesso ao Dataset (Próprio usuario incluso)
+                $insertClause = [];
+                $queryParams = [':id_dataset' => $id_dataset];
+                foreach ($treated_data['usuarios'] as $i => $id_usuario){
+                    $insertClause[] = "(:id_dataset, :id_usuario_{$i})";
+                    $queryParams[":id_usuario_{$i}"] = $id_usuario;
+                }
+                $insertSQL = implode(',', $insertClause);
+                $statement = $this->pdo->prepare("INSERT INTO rv__dataset__usuario (id_dataset,id_usuario) VALUES {$insertSQL}");
+                foreach ($queryParams as $name => $value)
+                    $statement->bindValue($name, $value, $this->bindValue_Type($value));
+                $statement->execute();
+            }
+
+            // Edita o Dataset
+            if (isset($treated_data['nome']) || isset($treated_data['situacao']) || isset($treated_data['tipo']) || isset($treated_data['observacao']) || isset($treated_data['usuarios'])){
+                $updateClause = ['data_atualizacao = NOW()'];
+                $queryParams = [
+                    ':id_dataset' => $id_dataset,
+                    ':id_usuario_criador' => $id_criador
+                ];
+                foreach ($treated_data as $name => $value){
+                    // Pula usuarios com acesso, pois é em outra query
+                    if ($name !== 'usuarios'){
+                        $updateClause[] = "{$name} = :{$name}";
+                        $queryParams[":{$name}"] = $value;
+                    }
+                }
+                $updateSQL = implode(', ', $updateClause);
+                $statement = $this->pdo->prepare("UPDATE rv__dataset SET {$updateSQL} WHERE id=:id_dataset AND id_usuario_criador=:id_usuario_criador");
+                foreach ($queryParams as $name => $value)
+                    $statement->bindValue($name, $value, $this->bindValue_Type($value));
+                $statement->execute();
+            }
+
+            $this->pdo->commit();
+            return ['status' => 1, 'error' => ''];
+        }
+        catch (PDOException $exception) {
+            $this->pdo->rollBack();
+            if (in_array($exception->getCode(), [1062, 23000]))
+                $error = 'Um dataset com esse nome já está cadastrado';
+            else
+                $error = 'Erro ao editar este Dataset';
+            return ['status' => 0, 'error' => $error];
+        }
     }
 }

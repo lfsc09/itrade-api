@@ -21,16 +21,19 @@ final class DatasetController
             'id_usuario' => $id_usuario
         ];
         $datasetDAO = new DatasetDAO();
-        [ 'data' => $datagrid ] = $datasetDAO->list_datagrid(...$treated_data);
-        $response = $response->withJson(['datagrid' => $datagrid], 200);
+        [ 'status' => $status, 'error' => $error, 'data' => $datagrid ] = $datasetDAO->list_datagrid(...$treated_data);
+        if ($status === 1)
+            $response = $response->withJson(['datagrid' => $datagrid], 200);
+        else
+            $response = $response->withStatus(500)->write($error);
         return $response;
     }
 
     public function list_new(Request $request, Response $response, array $args)
     {
         $id_usuario = $request->getAttribute('token')['id'];
-        $usuarioDAO = new UsuarioDAO();
-        [ 'data' => $select_usuarios ] = $usuarioDAO->dataset__list_edit($id_usuario);
+        $datasetDAO = new DatasetDAO();
+        [ 'data' => $select_usuarios ] = $datasetDAO->list_edit__usuario($id_usuario);
         $response = $response->withJson(['dataset' => NULL, 'usuarios' => $select_usuarios], 200);
         return $response;
     }
@@ -40,9 +43,8 @@ final class DatasetController
         $id_usuario = $request->getAttribute('token')['id'];
         $id_dataset = $request->getAttribute('route')->getArgument('id_dataset');
         $datasetDAO = new DatasetDAO();
-        $usuarioDAO = new UsuarioDAO();
         [ 'data' => $dataset ] = $datasetDAO->list_edit($id_dataset, $id_usuario);
-        [ 'data' => $select_usuarios ] = $usuarioDAO->dataset__list_edit($id_usuario);
+        [ 'data' => $select_usuarios ] = $datasetDAO->list_edit__usuario($id_usuario);
         $response = $response->withJson(['dataset' => $dataset, 'usuarios' => $select_usuarios], 200);
         return $response;
     }
@@ -56,7 +58,23 @@ final class DatasetController
         if ($status === 1)
             $response = $response->withStatus(200);
         else
-            $response = $response->withJson(['error' => $error], 500);
+            $response = $response->withStatus(500)->write($error);
+        return $response;
+    }
+
+    public function edit_dataset(Request $request, Response $response, array $args)
+    {
+        $id_usuario = $request->getAttribute('token')['id'];
+        $id_dataset = $request->getAttribute('route')->getArgument('id_dataset');
+        $fetched_data = $request->getParsedBody();
+        $datasetDAO = new DatasetDAO();
+        [ 'status' => $status, 'error' => $error ] = $datasetDAO->edit_dataset($fetched_data, $id_dataset, $id_usuario);
+        if ($status === 1){
+            [ 'data' => $dataset ] = $datasetDAO->list_edit($id_dataset, $id_usuario);
+            $response = $response->withJson(['dataset' => $dataset], 200);
+        }
+        else
+            $response = $response->withStatus(500)->write($error);
         return $response;
     }
 }

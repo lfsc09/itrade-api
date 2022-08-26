@@ -11,20 +11,6 @@ class UsuarioDAO extends Connection
     }
 
     /**
-     * Retorna a lista de usuarios no sistema (Para DatasetController::list_edita)
-     * 
-     * @param id_usuario : Id do usuario fazendo a requisição, para não ser retornado na lista
-     */
-    public function dataset__list_edit($id_usuario)
-    {
-        $statement = $this->pdo->prepare('SELECT id,usuario,nome FROM usuario WHERE id != :id_usuario');
-        $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
-        $statement->execute();
-        $usuarios = $statement->fetchAll(\PDO::FETCH_ASSOC);
-        return ['data' => $usuarios];
-    }
-
-    /**
      * Verifica e retorna os dados que serão usados na autenticação do Usuário
      * 
      * @param array fetched_data = [
@@ -32,7 +18,7 @@ class UsuarioDAO extends Connection
      *      'password' => @var string Senha do Usuário
      * ]
      */
-    private function auth_usuario__fetchedData($fetched_data)
+    private function auth_usuario__fetchedData($fetched_data = [])
     {
         // Itens Obrigatórios
         if (empty($fetched_data))
@@ -53,10 +39,8 @@ class UsuarioDAO extends Connection
 
     /**
      * Retorna os dados do usuario passado para fins de autenticação e criação do Token.
-     * 
-     * @param usuario : Login do usuario a ser autenticado
      */
-    public function auth_usuario($fetched_data)
+    public function auth_usuario($fetched_data = [])
     {
         [
             'status' => $status,

@@ -1,21 +1,19 @@
 <?php
 
 use function src\slimContainerConfig;
-use App\Controllers\{ AuthController, UsuarioController, DatasetController };
+use App\Controllers\{ AuthController, UsuarioController, DatasetController, AtivoController };
 use Tuupola\Middleware\JwtAuthentication;
 
 $app = new \Slim\App(slimContainerConfig());
 
-/**
+/****************
  * ROTA DE LOGIN
- * 
- */
+ ****************/
 $app->post('/auth', AuthController::class . ':authenticate');
 
-/**
+/********************
  * ROTAS DE USUARIOS
- * 
- */
+ ********************/
 $app->group('', function () use ($app) {
     $app->post('/usuario/novo', UsuarioController::class . ':new_usuario');
 })
@@ -24,10 +22,9 @@ $app->group('', function () use ($app) {
     'secure' => getenv('JWT_SECURE')
 ]));
 
-/**
+/********************
  * ROTAS DE DATASETS
- * 
- */
+ ********************/
 $app->group('', function () use ($app) {
     $app->post('/dataset/list_datagrid', DatasetController::class . ':list_datagrid');
     $app->get('/dataset/list_novo', DatasetController::class . ':list_new');
@@ -38,6 +35,25 @@ $app->group('', function () use ($app) {
     $app->post('/dataset/novo', DatasetController::class . ':new_dataset');
     $app->put('/dataset/edita/{id_dataset}', DatasetController::class . ':edit_dataset');
     $app->delete('/dataset/deleta/{id_dataset}', DatasetController::class . ':delete_dataset');
+})
+->add(new JwtAuthentication([
+    'secret' => getenv('JWT_SECRET_KEY'),
+    'secure' => getenv('JWT_SECURE')
+]));
+
+/******************
+ * ROTAS DE ATIVOS
+ ******************/
+$app->group('', function () use ($app) {
+    $app->get('/ativo/list_suggest', AtivoController::class . ':list_suggest');
+    $app->post('/ativo/list_datagrid', AtivoController::class . ':list_datagrid');
+    /**
+     * TODO: Fazer Middleware para permissões
+     */
+    $app->get('/ativo/list_edita/{id_ativo}', AtivoController::class . ':list_edit');
+    $app->post('/ativo/novo', AtivoController::class . ':new_ativo');
+    $app->put('/ativo/edita/{id_ativo}', AtivoController::class . ':edit_ativo');
+    $app->delete('/ativo/deleta/{id_ativo}', AtivoController::class . ':delete_ativo');
 })
 ->add(new JwtAuthentication([
     'secret' => getenv('JWT_SECRET_KEY'),
