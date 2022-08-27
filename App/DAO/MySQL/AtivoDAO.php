@@ -168,7 +168,7 @@ class AtivoDAO extends Connection
         // Trata dados
         $treated_data = [
             'nome' => $fetched_data['nome'],
-            'custo' => (float) $fetched_data['situacao'],
+            'custo' => (float) $fetched_data['custo'],
             'valor_tick' => (float) $fetched_data['valor_tick'],
             'pts_tick' => (float) $fetched_data['pts_tick']
         ];
