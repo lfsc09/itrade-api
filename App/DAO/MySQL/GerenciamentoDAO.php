@@ -4,7 +4,7 @@ namespace App\DAO\MySQL;
 
 use PDOException;
 
-class AtivoDAO extends Connection
+class GerenciamentoDAO extends Connection
 {
 
     public function __construct()
@@ -13,7 +13,7 @@ class AtivoDAO extends Connection
     }
 
     /**
-     * Retornar de sugestão de ativos para um Autocomplete, dependendo do @param field passado e seu @param value.
+     * Retornar de sugestão de gerenciamentos para um Autocomplete, dependendo do @param field passado e seu @param value.
      * 
      * @param place      : Informa o local que está requisitando, podendo mudar as informações a serem retornadas
      * @param filters    : Filtros utilizados na busca
@@ -28,19 +28,19 @@ class AtivoDAO extends Connection
 
         // Inicia o SEARCHING
         $whereClause = [
-            "rva.id_usuario = {$id_usuario}"
+            "rvg.id_usuario = {$id_usuario}"
         ];
         
         // SEMPRE fazer as queries especificas para o MODULO__LOCAL__INPUT fazendo a requisição (SEM generalizações no código)
         switch ($place) {
-            case 'ativo__filter__nome':
+            case 'gerenciamento__filter__nome':
                 // Prepara o SEARCHING
                 if (!array_key_exists('nome', $filters))
                     return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
-                $whereClause[] = "rva.nome LIKE :nome";
+                $whereClause[] = "rvg.nome LIKE :nome";
                 $queryParams[':nome'] = "%{$filters['nome']}%";
                 $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
-                $statement = $this->pdo->prepare("SELECT rva.nome AS value,rva.nome AS label FROM rv__ativo rva {$whereSQL}");
+                $statement = $this->pdo->prepare("SELECT rvg.nome AS value,rvg.nome AS label FROM rv__gerenciamento rvg {$whereSQL}");
                 break;
             default:
                 return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
@@ -54,7 +54,7 @@ class AtivoDAO extends Connection
     }
 
     /**
-     * Retornar dados dos Ativos para uso no DataGrid.
+     * Retornar dados dos Gerenciamentos para uso no DataGrid.
      * 
      * @param page       : Index da pagina a ser recuperada [(@param page * @param pageSize * 1) ... (@param pageSize)]
      * @param pageSize   : Quantidade de linhas a serem retornadas
@@ -73,20 +73,20 @@ class AtivoDAO extends Connection
          * ATIVO TABLE
          */
         $queryParams = [];
-        $selectClause = ['rva.*'];
+        $selectClause = ['rvg.*'];
 
         // Prepara o SEARCHING
         // 'compare' : Tipo de comparação LIKE ou =
         // 'strict'  : Use para apendar % no inicio e/ou final (Ou vazio se não for necessário)
         $validFilterColumns = [
             'nome' => [
-                'col' => 'rva.nome',
+                'col' => 'rvg.nome',
                 'compare' => 'LIKE',
                 'strict' => ['start' => '%', 'end' => '%']
             ]
         ];
         $whereClause = [
-            "rva.id_usuario = {$id_usuario}"
+            "rvg.id_usuario = {$id_usuario}"
         ];
         foreach ($filters as $col_name => $values) {
             $colClause = [];
@@ -101,14 +101,14 @@ class AtivoDAO extends Connection
         $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
         
         // Capturar a quantidade total (Com os filtros aplicados)
-        $statement = $this->pdo->prepare("SELECT COUNT(*) FROM rv__ativo rva {$whereSQL}");
+        $statement = $this->pdo->prepare("SELECT COUNT(*) FROM rv__gerenciamento rvg {$whereSQL}");
         $statement->execute($queryParams);
         $total_rows = $statement->fetchColumn();
 
         // Prepara o SORTING
         $sortClause = [];
         foreach ($sorting as $column) {
-            $sortClause[] = "rva.{$column['field']} {$column['sort']}";
+            $sortClause[] = "rvg.{$column['field']} {$column['sort']}";
         }
         $sortSQL = !empty($sortClause) ? 'ORDER BY ' . implode(', ', $sortClause) : '';
 
@@ -117,83 +117,106 @@ class AtivoDAO extends Connection
         $queryParams[':offset'] = $offset;
         $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
         $selectSQL = implode(',', $selectClause);
-        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__ativo rva {$whereSQL} {$sortSQL} LIMIT :offset,:pageSize");
+        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__gerenciamento rvg {$whereSQL} {$sortSQL} LIMIT :offset,:pageSize");
         foreach ($queryParams as $name => $value)
             $statement->bindValue($name, $value, $this->bindValue_Type($value));
         $statement->execute();
-        $ativos = $statement->fetchAll(\PDO::FETCH_ASSOC);
 
-        return ['status' => 1, 'error' => '', 'data' => ['rowCount' => $total_rows, 'rows' => $ativos]];
+        $gerenciamentos = [];
+        while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
+            $acoes_decoded = json_decode($row['acoes'], TRUE);
+            $escaladas_decoded = json_decode($row['escaladas'], TRUE);
+            $acoes = [];
+            for ($i=0; $i < count($acoes_decoded); $i++)
+                $acoes[] = ['acao' => (int) $acoes_decoded[$i], 'escalada' => (int) $escaladas_decoded[$i]];
+            $gerenciamentos[] = [
+                'id' => $row['id'],
+                'nome' => $row['nome'],
+                'acoes' => $acoes
+            ];
+        }
+
+        return ['status' => 1, 'error' => '', 'data' => ['rowCount' => $total_rows, 'rows' => $gerenciamentos]];
     }
 
     /**
-     * Retornar dados do Ativo para Edição
+     * Retornar dados do Gerenciamento para Edição
      */
-    public function list_edit($id_ativo = -1, $id_usuario = -1)
+    public function list_edit($id_gerenciamento = -1, $id_usuario = -1)
     {
-        $selectClause = ['rva.id', 'rva.nome', 'rva.custo', 'rva.valor_tick', 'rva.pts_tick'];
+        $selectClause = ['rvg.id', 'rvg.nome', 'rvg.acoes', 'rvg.escaladas'];
         $selectSQL = implode(',', $selectClause);
-        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__ativo rva WHERE rva.id = :id_ativo AND rva.id_usuario = :id_usuario");
-        $statement->bindValue(':id_ativo', $id_ativo, $this->bindValue_Type($id_ativo));
+        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__gerenciamento rvg WHERE rvg.id = :id_gerenciamento AND rvg.id_usuario = :id_usuario");
+        $statement->bindValue(':id_gerenciamento', $id_gerenciamento, $this->bindValue_Type($id_gerenciamento));
         $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
         $statement->execute();
-        $ativo = $statement->fetch(\PDO::FETCH_ASSOC);
-        return ['data' => $ativo ?: NULL];
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+
+        if ($row){
+            $acoes_decoded = json_decode($row['acoes'], TRUE);
+            $escaladas_decoded = json_decode($row['escaladas'], TRUE);
+            $acoes = [];
+            for ($i=0; $i < count($acoes_decoded); $i++)
+                $acoes[] = ['key' => $i, 'acao' => (int) $acoes_decoded[$i], 'escalada' => (int) $escaladas_decoded[$i]];
+            $gerenciamento = [
+                'id' => $row['id'],
+                'nome' => $row['nome'],
+                'acoes' => $acoes
+            ];
+            return ['data' => $gerenciamento];
+        }
+        else
+            return ['data' => NULL];
     }
 
     /**
-     * Verifica e retorna os dados para serem inseridos (Novo Ativo)
+     * Verifica e retorna os dados para serem inseridos (Novo Gerenciamento)
      * 
      * @param array fetched_data = [
-     *      'nome'       => @var string Nome do Ativo
-     *      'custo'      => @var float Custo por contrato do ativo
-     *      'valor_tick' => @var float Valor monetário de cada tick do ativo
-     *      'pts_tick'   => @var float Quantidade de pts a cada tick do ativo
+     *      'nome'      => @var string Nome do Gerenciamento
+     *      'acoes'     => @var string Array stringified de ações de Gain/Loss em Scalps
+     *      'escaladas' => @var string Array stringified de quantidade de escaladas das respectivas ações
      * ]
      */
-    private function new_ativo__fetchedData($fetched_data = [])
+    private function new_gerenciamento__fetchedData($fetched_data = [])
     {
         // Itens Obrigatórios
         if (empty($fetched_data))
             return ['status' => 0, 'error' => 'Sem dados passados', 'treated_data' => NULL];
         if (!isset($fetched_data['nome']) || $fetched_data['nome'] === '')
             return ['status' => 0, 'error' => 'Nome é obrigatório', 'treated_data' => NULL];
-        if (!isset($fetched_data['custo']) || $fetched_data['custo'] === '')
-            return ['status' => 0, 'error' => 'Custo é obrigatório', 'treated_data' => NULL];
-        if (!isset($fetched_data['valor_tick']) || $fetched_data['valor_tick'] === '')
-            return ['status' => 0, 'error' => 'Valor do tick é obrigatório', 'treated_data' => NULL];
-        if (!isset($fetched_data['pts_tick']) || $fetched_data['pts_tick'] === '')
-            return ['status' => 0, 'error' => 'Pts por tick é obrigatório', 'treated_data' => NULL];
+        if (!isset($fetched_data['acoes']) || $fetched_data['acoes'] === '')
+            return ['status' => 0, 'error' => 'As ações são obrigatórias', 'treated_data' => NULL];
+        if (!isset($fetched_data['escaladas']) || $fetched_data['escaladas'] === '')
+            return ['status' => 0, 'error' => 'As escaladas são obrigatórias', 'treated_data' => NULL];
 
         // Trata dados
         $treated_data = [
             'nome' => $fetched_data['nome'],
-            'custo' => (float) $fetched_data['custo'],
-            'valor_tick' => (float) $fetched_data['valor_tick'],
-            'pts_tick' => (float) $fetched_data['pts_tick']
+            'acoes' => $fetched_data['acoes'],
+            'escaladas' => $fetched_data['escaladas']
         ];
 
         return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
     }
 
     /**
-     * Recebe dados de Ativo para criar um novo
+     * Recebe dados de Gerenciamento para criar um novo
      */
-    public function new_ativo($fetched_data = [], $id_usuario = -1)
+    public function new_gerenciamento($fetched_data = [], $id_usuario = -1)
     {
-        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->new_ativo__fetchedData($fetched_data);
+        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->new_gerenciamento__fetchedData($fetched_data);
         if ($status === 0)
             return ['status' => 0, 'error' => $error];
 
         try {
             $this->pdo->beginTransaction();
-            // Cria o Ativo
-            $statement = $this->pdo->prepare('INSERT INTO rv__ativo (id_usuario,nome,custo,valor_tick,pts_tick) VALUES (:id_usuario, UPPER(:nome), :custo, :valor_tick, :pts_tick)');
+            // Cria o Gerenciamento
+            $statement = $this->pdo->prepare('INSERT INTO rv__gerenciamento (id_usuario,nome,acoes,escaladas) VALUES (:id_usuario, UPPER(:nome), :acoes, :escaladas)');
             $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
             $statement->bindValue(':nome', $treated_data['nome'], $this->bindValue_Type($treated_data['nome']));
-            $statement->bindValue(':custo', $treated_data['custo'], $this->bindValue_Type($treated_data['custo']));
-            $statement->bindValue(':valor_tick', $treated_data['valor_tick'], $this->bindValue_Type($treated_data['valor_tick']));
-            $statement->bindValue(':pts_tick', $treated_data['pts_tick'], $this->bindValue_Type($treated_data['pts_tick']));
+            $statement->bindValue(':acoes', $treated_data['acoes'], $this->bindValue_Type($treated_data['acoes']));
+            $statement->bindValue(':escaladas', $treated_data['escaladas'], $this->bindValue_Type($treated_data['escaladas']));
             $statement->execute();
 
             $this->pdo->commit();
@@ -202,24 +225,23 @@ class AtivoDAO extends Connection
         catch (\PDOException $exception) {
             $this->pdo->rollBack();
             if (in_array($exception->getCode(), [1062, 23000]))
-                $error = 'Ativo já cadastrado';
+                $error = 'Gerenciamento já cadastrado';
             else
-                $error = 'Erro ao cadastrar este Ativo';
+                $error = 'Erro ao cadastrar este Gerenciamento';
             return ['status' => 0, 'error' => $error];
         }
     }
 
     /**
-     * Verifica e retorna os dados para serem editados (Edição do Ativo)
+     * Verifica e retorna os dados para serem editados (Edição do Gerenciamento)
      * 
      * @param array fetched_data = [
-     *      'nome'       => @var string Nome do Ativo
-     *      'custo'      => @var float Custo por contrato do ativo
-     *      'valor_tick' => @var float Valor monetário de cada tick do ativo
-     *      'pts_tick'   => @var float Quantidade de pts a cada tick do ativo
+     *      'nome'      => @var string Nome do Gerenciamento
+     *      'acoes'     => @var string Array stringified de ações de Gain/Loss em Scalps
+     *      'escaladas' => @var string Array stringified de quantidade de escaladas das respectivas ações
      * ]
      */
-    private function edit_ativo__fetchedData($fetched_data = [])
+    private function edit_gerenciamento__fetchedData($fetched_data = [])
     {
         // Itens Obrigatórios
         if (empty($fetched_data))
@@ -230,32 +252,30 @@ class AtivoDAO extends Connection
         // Trata dados
         if (isset($fetched_data['nome']) && $fetched_data['nome'] !== '')
             $treated_data['nome'] = $fetched_data['nome'];
-        if (isset($fetched_data['custo']) && $fetched_data['custo'] !== '')
-            $treated_data['custo'] = (float) $fetched_data['custo'];
-        if (isset($fetched_data['valor_tick']) && $fetched_data['valor_tick'] !== '')
-            $treated_data['valor_tick'] = (float) $fetched_data['valor_tick'];
-        if (isset($fetched_data['pts_tick']) && $fetched_data['pts_tick'] !== '')
-            $treated_data['pts_tick'] = (float) $fetched_data['pts_tick'];
+        if (isset($fetched_data['acoes']) && $fetched_data['acoes'] !== '')
+            $treated_data['acoes'] = $fetched_data['acoes'];
+        if (isset($fetched_data['escaladas']) && $fetched_data['escaladas'] !== '')
+            $treated_data['escaladas'] = $fetched_data['escaladas'];
 
         return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
     }
 
     /**
-     * Recebe dados do Ativo para editar
+     * Recebe dados do Gerenciamento para editar
      */
-    public function edit_ativo($fetched_data = [], $id_ativo = -1, $id_usuario = -1)
+    public function edit_gerenciamento($fetched_data = [], $id_gerenciamento = -1, $id_usuario = -1)
     {
-        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->edit_ativo__fetchedData($fetched_data);
+        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->edit_gerenciamento__fetchedData($fetched_data);
         if ($status === 0)
             return ['status' => 0, 'error' => $error];
 
         try {
             $this->pdo->beginTransaction();
-            // Edita o Ativo
-            if (isset($treated_data['nome']) || isset($treated_data['custo']) || isset($treated_data['valor_tick']) || isset($treated_data['pts_tick'])){
+            // Edita o Gerenciamento
+            if (isset($treated_data['nome']) || isset($treated_data['acoes']) || isset($treated_data['escaladas'])){
                 $updateClause = [];
                 $queryParams = [
-                    ':id_ativo' => $id_ativo,
+                    ':id_gerenciamento' => $id_gerenciamento,
                     ':id_usuario' => $id_usuario
                 ];
                 foreach ($treated_data as $name => $value){
@@ -263,7 +283,7 @@ class AtivoDAO extends Connection
                     $queryParams[":{$name}"] = $value;
                 }
                 $updateSQL = implode(', ', $updateClause);
-                $statement = $this->pdo->prepare("UPDATE rv__ativo SET {$updateSQL} WHERE id=:id_ativo AND id_usuario=:id_usuario");
+                $statement = $this->pdo->prepare("UPDATE rv__gerenciamento SET {$updateSQL} WHERE id=:id_gerenciamento AND id_usuario=:id_usuario");
                 foreach ($queryParams as $name => $value)
                     $statement->bindValue($name, $value, $this->bindValue_Type($value));
                 $statement->execute();
@@ -275,26 +295,26 @@ class AtivoDAO extends Connection
         catch (PDOException $exception) {
             $this->pdo->rollBack();
             if (in_array($exception->getCode(), [1062, 23000]))
-                $error = 'Um ativo com esse nome já está cadastrado';
+                $error = 'Um gerenciamento com esse nome já está cadastrado';
             else
-                $error = 'Erro ao editar este Ativo';
+                $error = 'Erro ao editar este Gerenciamento';
             return ['status' => 0, 'error' => $error];
         }
     }
 
     /**
-     * Delete um Ativo
+     * Delete um Gerenciamento
      */
-    public function delete_ativo($id_ativo = -1, $id_usuario = -1)
+    public function delete_gerenciamento($id_gerenciamento = -1, $id_usuario = -1)
     {
 
         try {
             $this->pdo->beginTransaction();
             $queryParams = [
-                ':id_ativo' => $id_ativo,
+                ':id_gerenciamento' => $id_gerenciamento,
                 ':id_usuario' => $id_usuario
             ];
-            $statement = $this->pdo->prepare("DELETE FROM rv__ativo WHERE id=:id_ativo AND id_usuario=:id_usuario");
+            $statement = $this->pdo->prepare("DELETE FROM rv__gerenciamento WHERE id=:id_gerenciamento AND id_usuario=:id_usuario");
             foreach ($queryParams as $name => $value)
                 $statement->bindValue($name, $value, $this->bindValue_Type($value));
             $statement->execute();
@@ -304,7 +324,7 @@ class AtivoDAO extends Connection
         }
         catch (PDOException $exception) {
             $this->pdo->rollBack();
-            return ['status' => 0, 'error' => 'Erro ao deletar este Ativo'];
+            return ['status' => 0, 'error' => 'Erro ao deletar este Gerenciamento'];
         }
     }
 }

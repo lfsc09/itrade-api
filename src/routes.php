@@ -1,7 +1,7 @@
 <?php
 
 use function src\slimContainerConfig;
-use App\Controllers\{ AuthController, UsuarioController, DatasetController, AtivoController };
+use App\Controllers\{ AuthController, UsuarioController, DatasetController, AtivoController, GerenciamentoController };
 use Tuupola\Middleware\JwtAuthentication;
 
 $app = new \Slim\App(slimContainerConfig());
@@ -54,6 +54,25 @@ $app->group('', function () use ($app) {
     $app->post('/ativo/novo', AtivoController::class . ':new_ativo');
     $app->put('/ativo/edita/{id_ativo}', AtivoController::class . ':edit_ativo');
     $app->delete('/ativo/deleta/{id_ativo}', AtivoController::class . ':delete_ativo');
+})
+->add(new JwtAuthentication([
+    'secret' => getenv('JWT_SECRET_KEY'),
+    'secure' => getenv('JWT_SECURE')
+]));
+
+/**************************
+ * ROTAS DE GERENCIAMENTOS
+ **************************/
+$app->group('', function () use ($app) {
+    $app->get('/gerenciamento/list_suggest', GerenciamentoController::class . ':list_suggest');
+    $app->post('/gerenciamento/list_datagrid', GerenciamentoController::class . ':list_datagrid');
+    /**
+     * TODO: Fazer Middleware para permissões
+     */
+    $app->get('/gerenciamento/list_edita/{id_gerenciamento}', GerenciamentoController::class . ':list_edit');
+    $app->post('/gerenciamento/novo', GerenciamentoController::class . ':new_gerenciamento');
+    $app->put('/gerenciamento/edita/{id_gerenciamento}', GerenciamentoController::class . ':edit_gerenciamento');
+    $app->delete('/gerenciamento/deleta/{id_gerenciamento}', GerenciamentoController::class . ':delete_gerenciamento');
 })
 ->add(new JwtAuthentication([
     'secret' => getenv('JWT_SECRET_KEY'),
