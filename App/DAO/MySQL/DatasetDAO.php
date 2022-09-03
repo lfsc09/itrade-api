@@ -13,6 +13,44 @@ class DatasetDAO extends Connection
     }
 
     /**
+     * Retornar de sugestão de datasets para um Autocomplete, dependendo do @param field passado e seu @param value.
+     * 
+     * @param place      : Informa o local que está requisitando, podendo mudar as informações a serem retornadas
+     * @param filters    : Filtros utilizados na busca
+     * @param id_usuario : Id do usuario logado a fazer esta requisição
+     */
+    public function list_suggestion($place, $filters, $id_usuario)
+    {
+        if (is_null($place) || !is_array($filters))
+            return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
+            
+        $queryParams = [];
+
+        // Inicia o SEARCHING
+        $whereClause = [];
+        
+        // SEMPRE fazer as queries especificas para o MODULO__LOCAL__INPUT fazendo a requisição (SEM generalizações no código)
+        switch ($place) {
+            case 'dashboard__picker__nome':
+                $whereClause[] = "rvd_u.id_usuario = {$id_usuario}";
+                break;
+            case 'cenario__picker__nome':
+                $whereClause[] = "rvd.id_usuario_criador = {$id_usuario}";
+                $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
+                $statement = $this->pdo->prepare("SELECT rvd.id,rvd.nome FROM rv__dataset rvd {$whereSQL} ORDER BY rvd.nome ASC");
+                break;
+            default:
+                return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
+        }
+        foreach ($queryParams as $name => $value)
+            $statement->bindValue($name, $value, $this->bindValue_Type($value));
+        $statement->execute();
+        $suggests = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+        return ['status' => 1, 'error' => '', 'data' => $suggests];
+    }
+
+    /**
      * Retornar dados dos Datasets para uso no DataGrid.
      * 
      * @param page       : Index da pagina a ser recuperada [(@param page * @param pageSize * 1) ... (@param pageSize)]

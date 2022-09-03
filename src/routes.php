@@ -1,7 +1,7 @@
 <?php
 
 use function src\slimContainerConfig;
-use App\Controllers\{ AuthController, UsuarioController, DatasetController, AtivoController, GerenciamentoController };
+use App\Controllers\{ AuthController, UsuarioController, DatasetController, AtivoController, GerenciamentoController, CenarioController };
 use Tuupola\Middleware\JwtAuthentication;
 
 $app = new \Slim\App(slimContainerConfig());
@@ -26,6 +26,7 @@ $app->group('', function () use ($app) {
  * ROTAS DE DATASETS
  ********************/
 $app->group('', function () use ($app) {
+    $app->get('/dataset/list_suggest', DatasetController::class . ':list_suggest');
     $app->post('/dataset/list_datagrid', DatasetController::class . ':list_datagrid');
     $app->get('/dataset/list_novo', DatasetController::class . ':list_new');
     /**
@@ -73,6 +74,25 @@ $app->group('', function () use ($app) {
     $app->post('/gerenciamento/novo', GerenciamentoController::class . ':new_gerenciamento');
     $app->put('/gerenciamento/edita/{id_gerenciamento}', GerenciamentoController::class . ':edit_gerenciamento');
     $app->delete('/gerenciamento/deleta/{id_gerenciamento}', GerenciamentoController::class . ':delete_gerenciamento');
+})
+->add(new JwtAuthentication([
+    'secret' => getenv('JWT_SECRET_KEY'),
+    'secure' => getenv('JWT_SECURE')
+]));
+
+/********************
+ * ROTAS DE CENARIOS
+ ********************/
+$app->group('', function () use ($app) {
+    $app->get('/cenario/list_suggest', CenarioController::class . ':list_suggest');
+    $app->post('/cenario/list_datarows', CenarioController::class . ':list_datarows');
+    /**
+     * TODO: Fazer Middleware para permissões
+     */
+    $app->get('/cenario/list_edita/{id_cenario}', CenarioController::class . ':list_edit');
+    $app->post('/cenario/novo', CenarioController::class . ':new_cenario');
+    $app->put('/cenario/edita/{id_cenario}', CenarioController::class . ':edit_cenario');
+    $app->delete('/cenario/deleta/{id_cenario}', CenarioController::class . ':delete_cenario');
 })
 ->add(new JwtAuthentication([
     'secret' => getenv('JWT_SECRET_KEY'),

@@ -3,12 +3,29 @@
 namespace App\Controllers;
 
 use App\DAO\MySQL\DatasetDAO;
-use App\DAO\MySQL\UsuarioDAO;
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Slim\Http\Response as Response;
 
 final class DatasetController
 {
+    public function list_suggest(Request $request, Response $response, array $args)
+    {
+        $id_usuario = $request->getAttribute('token')['id'];
+        $fetched_data = $request->getQueryParams();
+        $treated_data = [
+            'place' => $fetched_data['place'] ?? NULL,
+            'filters' => $fetched_data['filters'] ?? [],
+            'id_usuario' => $id_usuario
+        ];
+        $datasetDAO = new DatasetDAO();
+        [ 'status' => $status, 'error' => $error, 'data' => $suggestion ] = $datasetDAO->list_suggestion(...$treated_data);
+        if ($status === 1)
+            $response = $response->withJson(['suggestion' => $suggestion], 200);
+        else
+            $response = $response->withStatus(500)->write($error);
+        return $response;
+    }
+
     public function list_datagrid(Request $request, Response $response, array $args)
     {
         $id_usuario = $request->getAttribute('token')['id'];
