@@ -32,10 +32,6 @@ final class CenarioController
         $id_usuario = $request->getAttribute('token')['id'];
         $fetched_data = $request->getParsedBody();
         $treated_data = [
-            'page' => $fetched_data['page'] ?? 0,
-            'pageSize' => $fetched_data['pageSize'] ?? 0,
-            'filters' => $fetched_data['filters'] ?? [],
-            'sorting' => $fetched_data['sorting'] ?? [],
             'id_dataset' => $fetched_data['id_dataset'] ?? NULL,
             'id_usuario' => $id_usuario
         ];

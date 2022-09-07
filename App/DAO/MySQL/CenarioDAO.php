@@ -56,19 +56,13 @@ class CenarioDAO extends Connection
     /**
      * Retornar dados dos Cenarios para uso na Listagem.
      * 
-     * @param page       : Index da pagina a ser recuperada [(@param page * @param pageSize * 1) ... (@param pageSize)]
-     * @param pageSize   : Quantidade de linhas a serem retornadas
-     * @param filters    : Array com os filtros a serem aplicados como SEARCH
-     * @param sorting    : Array com as colunas para fazer SORT
      * @param id_dataset : Id do dataset que contem os possiveis cenarios
      * @param id_usuario : Id do usuario logado a fazer esta requisição
      */
-    public function list_datarows($page, $pageSize, $filters, $sorting, $id_dataset, $id_usuario)
+    public function list_datarows($id_dataset, $id_usuario)
     {
-        if (!is_numeric($page) || !is_numeric($pageSize) || !is_array($filters) || !is_array($sorting))
+        if (is_null($id_dataset))
             return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
-
-        $offset = $page * $pageSize;
 
         /**
          * CENARIO TABLE
@@ -77,49 +71,15 @@ class CenarioDAO extends Connection
         $selectClause = ['rvc.id', 'rvc.nome'];
 
         // Prepara o SEARCHING
-        // 'compare' : Tipo de comparação LIKE ou =
-        // 'strict'  : Use para apendar % no inicio e/ou final (Ou vazio se não for necessário)
-        $validFilterColumns = [
-            'nome' => [
-                'col' => 'rvc.nome',
-                'compare' => 'LIKE',
-                'strict' => ['start' => '%', 'end' => '%']
-            ]
-        ];
         $whereClause = [
             "rvd.id_usuario_criador = {$id_usuario}",
             "rvc.id_dataset = :id_dataset"
         ];
-        foreach ($filters as $col_name => $values) {
-            $colClause = [];
-            if (!array_key_exists($col_name, $validFilterColumns))
-                return ['status' => 0, 'error' => "'{$col_name}' não é valido", 'data' => NULL];
-            foreach ($values as $i => $value){
-                $colClause[] = $validFilterColumns[$col_name]['col'] . ' ' . $validFilterColumns[$col_name]['compare'] . ' ' . ":{$col_name}_{$i}";
-                $queryParams[":{$col_name}_{$i}"] = $validFilterColumns[$col_name]['strict']['start'] . $value . $validFilterColumns[$col_name]['strict']['end'];
-            }
-            $whereClause[] = '(' . implode(' OR ', $colClause) . ')';
-        }
         $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
         
-        // Capturar a quantidade total (Com os filtros aplicados)
-        $statement = $this->pdo->prepare("SELECT COUNT(*) FROM rv__cenario rvc INNER JOIN rv__dataset rvd ON rvc.id_dataset=rvd.id {$whereSQL}");
-        $statement->execute($queryParams);
-        $total_rows = $statement->fetchColumn();
-
-        // Prepara o SORTING
-        $sortClause = [];
-        foreach ($sorting as $column) {
-            $sortClause[] = "rvc.{$column['field']} {$column['sort']}";
-        }
-        $sortSQL = !empty($sortClause) ? 'ORDER BY ' . implode(', ', $sortClause) : '';
-
         // Capturar as rows para serem mostradas
-        $queryParams[':pageSize'] = $pageSize;
-        $queryParams[':offset'] = $offset;
-        $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
         $selectSQL = implode(',', $selectClause);
-        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__cenario rvc INNER JOIN rv__dataset rvd ON rvc.id_dataset=rvd.id {$whereSQL} {$sortSQL} LIMIT :offset,:pageSize");
+        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__cenario rvc INNER JOIN rv__dataset rvd ON rvc.id_dataset=rvd.id {$whereSQL} ORDER BY rvc.nome ASC");
         foreach ($queryParams as $name => $value)
             $statement->bindValue($name, $value, $this->bindValue_Type($value));
         $statement->execute();
@@ -137,7 +97,7 @@ class CenarioDAO extends Connection
             ];
         }
 
-        return ['status' => 1, 'error' => '', 'data' => ['rowCount' => $total_rows, 'rows' => $cenarios]];
+        return ['status' => 1, 'error' => '', 'data' => $cenarios];
     }
 
     /**
