@@ -1,7 +1,7 @@
 <?php
 
 use function src\slimContainerConfig;
-use App\Controllers\{ AuthController, UsuarioController, DatasetController, AtivoController, GerenciamentoController, CenarioController };
+use App\Controllers\{ AuthController, UsuarioController, DashboardController, DatasetController, AtivoController, GerenciamentoController, CenarioController };
 use Tuupola\Middleware\JwtAuthentication;
 
 $app = new \Slim\App(slimContainerConfig());
@@ -16,6 +16,24 @@ $app->post('/auth', AuthController::class . ':authenticate');
  ********************/
 $app->group('', function () use ($app) {
     $app->post('/usuario/novo', UsuarioController::class . ':new_usuario');
+})
+->add(new JwtAuthentication([
+    'secret' => getenv('JWT_SECRET_KEY'),
+    'secure' => getenv('JWT_SECURE')
+]));
+
+/***************************************************************
+ *                           DAYTRADE
+ ***************************************************************/
+
+/*********************
+ * ROTAS DE DASHBOARD
+ *********************/
+$app->group('', function () use ($app) {
+    $app->get('/dash/step1', DashboardController::class . ':step1');
+    /**
+     * TODO: Fazer Middleware para permissões
+     */
 })
 ->add(new JwtAuthentication([
     'secret' => getenv('JWT_SECRET_KEY'),
