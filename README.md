@@ -78,6 +78,12 @@ putenv('JWT_SECRET_KEY=NcQfTjWnZr4u7x!A%D*G-KaPdSgVkXp2s5v8y/B?E(H+MbQeThWmZq3t6
 putenv('JWT_SECURE=' . FALSE);
 ```
 
+7 - Carregar as dependencias do projeto
+
+```
+composer update
+```
+
 ### Para ambientes de produção (PROD)
 
 6 - Gerar o arquivo **config.php** a partir do _config.example.php_:
@@ -96,3 +102,9 @@ putenv('JWT_SECURE=' . TRUE);
 ```
 
 > Gerar a ENCRYPTION_KEY_512 em (https://www.allkeysgenerator.com/Random/Security-Encryption-Key-Generator.aspx)
+
+7 - Carregar as dependencias do projeto
+
+```
+composer update
+```
