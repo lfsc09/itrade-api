@@ -8,16 +8,29 @@ use \Slim\Http\Response as Response;
 
 final class DashboardController
 {
-    /**
-     * Step 1, retorna os Datasets que o usuario tem acesso (Utilizados nos Filtros)
-     */
-    public function step1(Request $request, Response $response, array $args)
+    public function load_datasets(Request $request, Response $response, array $args)
     {
         $id_usuario = $request->getAttribute('token')['id'];
         $dashboardDAO = new DashboardDAO();
         // Datasets que o usuario tem acesso
         [ 'data' => $datasets ] = $dashboardDAO->list__dataset($id_usuario);
         $response = $response->withJson(['datasets' => $datasets], 200);
+        return $response;
+    }
+
+    public function load_datasets__info(Request $request, Response $response, array $args)
+    {
+        $id_usuario = $request->getAttribute('token')['id'];
+        $fetched_data = $request->getParsedBody();
+        $treated_data = [
+            'filters' => $fetched_data['filters'] ?? [],
+            'id_usuario' => $id_usuario
+        ];
+        $dashboardDAO = new DashboardDAO();
+        // Operações dos Datasets que o usuario tem acesso
+        [ 'operacoes' => $operacoes, 'gerenciamentos' => $gerenciamentos, 'ativos' => $ativos, 'originalInfo' => $originalInfo ] = $dashboardDAO->list__operacoes(...$treated_data);
+        $cenarios = $dashboardDAO->list__cenario(...$treated_data);
+        $response = $response->withJson(['operacoes' => $operacoes, 'ativos' => $ativos, 'gerenciamentos' => $gerenciamentos, 'originalInfo' => $originalInfo, 'cenarios' => $cenarios], 200);
         return $response;
     }
 }

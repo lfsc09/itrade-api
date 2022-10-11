@@ -30,10 +30,8 @@ $app->group('', function () use ($app) {
  * ROTAS DE DASHBOARD
  *********************/
 $app->group('', function () use ($app) {
-    $app->get('/dash/step1', DashboardController::class . ':step1');
-    /**
-     * TODO: Fazer Middleware para permissões
-     */
+    $app->get('/dash/load_datasets', DashboardController::class . ':load_datasets');
+    $app->post('/dash/load_datasets__info', DashboardController::class . ':load_datasets__info');
 })
 ->add(new JwtAuthentication([
     'secret' => getenv('JWT_SECRET_KEY'),
