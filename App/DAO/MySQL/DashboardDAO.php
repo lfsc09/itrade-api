@@ -32,7 +32,7 @@ class DashboardDAO extends Connection
      * @param filters    : Filtros passados para consulta de operações
      * @param id_usuario : Id do usuario logado a fazer a requisição
      */
-    public function list__cenario($filters, $id_usuario)
+    public function list__cenario($cenarios_encontrados, $filters, $id_usuario)
     {
         if (!is_array($filters['dataset']) || empty($filters['dataset']))
             return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
@@ -59,6 +59,7 @@ class DashboardDAO extends Connection
 
         $cenarios = $statement->fetchAll(\PDO::FETCH_ASSOC);
 
+        $treated_cenarios = [];
         // Captura as observações
         if (!empty($cenarios)){
             $whereClause = array_reduce($cenarios, function ($t, $c) {
@@ -71,17 +72,21 @@ class DashboardDAO extends Connection
             $statement = $this->pdo->prepare("SELECT rvco.* FROM rv__cenario_obs rvco {$whereSQL} ORDER BY rvco.id_cenario,rvco.ref");
             $statement->execute();
             $observacoes = $statement->fetchAll(\PDO::FETCH_ASSOC);
-    
-            for ($c=0; $c < count($cenarios); $c++){
-                $cenarios[$c]['observacoes'] = [];
-                foreach ($observacoes as $obs){
-                    if ($cenarios[$c]['id'] === $obs['id_cenario'])
-                        $cenarios[$c]['observacoes'][] = ['id' => $obs['id'], 'ref' => $obs['ref'], 'nome' => $obs['nome']];
+
+            for ($c=0, $tc=0; $c < count($cenarios); $c++){
+                if (array_key_exists($cenarios[$c]['nome'], $cenarios_encontrados)){
+                    $treated_cenarios[$tc] = [ ...$cenarios[$c] ];
+                    $treated_cenarios[$tc]['observacoes'] = [];
+                    foreach ($observacoes as $obs){
+                        if ($treated_cenarios[$tc]['id'] === $obs['id_cenario'])
+                            $treated_cenarios[$tc]['observacoes'][] = ['id' => $obs['id'], 'ref' => $obs['ref'], 'nome' => $obs['nome']];
+                    }
+                    $tc++;
                 }
             }
         }
 
-        return $cenarios;
+        return $treated_cenarios;
     }
 
     /**
@@ -99,6 +104,7 @@ class DashboardDAO extends Connection
         $operacoes = [];
         $gerenciamentos = [];
         $ativos = [];
+        $cenarios = [];
         $originalInfo = [
             'dias' => []
         ];
@@ -141,6 +147,8 @@ class DashboardDAO extends Connection
                 $gerenciamentos[] = $row['gerenciamento'];
             if (!in_array($row['ativo'], $ativos))
                 $ativos[] = $row['ativo'];
+            if (!array_key_exists($row['cenario'], $cenarios))
+                $cenarios[$row['cenario']] = NULL;
             $originalInfo['dias'][$row['data']] = 0;
             $operacoes[] = [
                 'id' => $row['id'],
@@ -172,6 +180,6 @@ class DashboardDAO extends Connection
         array_walk($gerenciamentos, fn (&$r, $i) => $r = ['value' => $i, 'label' => $r]);
         array_walk($ativos, fn (&$r, $i) => $r = ['value' => $i, 'label' => $r]);
 
-        return ['operacoes' => $operacoes, 'gerenciamentos' => $gerenciamentos, 'ativos' => $ativos, 'originalInfo' => $originalInfo];
+        return ['operacoes' => $operacoes, 'gerenciamentos' => $gerenciamentos, 'ativos' => $ativos, 'cenarios_encontrados' => $cenarios, 'originalInfo' => $originalInfo];
     }
 }
