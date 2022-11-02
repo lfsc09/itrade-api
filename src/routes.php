@@ -1,7 +1,7 @@
 <?php
 
 use function src\slimContainerConfig;
-use App\Controllers\{ AuthController, UsuarioController, DashboardController, DatasetController, AtivoController, GerenciamentoController, CenarioController };
+use App\Controllers\{ AuthController, UsuarioController, DashboardController, DatasetController, AtivoController, GerenciamentoController, CenarioController, OperacaoController };
 use Tuupola\Middleware\JwtAuthentication;
 
 $app = new \Slim\App(slimContainerConfig());
@@ -109,6 +109,22 @@ $app->group('', function () use ($app) {
     $app->post('/cenario/novo', CenarioController::class . ':new_cenario');
     $app->put('/cenario/edita/{id_cenario}', CenarioController::class . ':edit_cenario');
     $app->delete('/cenario/deleta/{id_cenario}', CenarioController::class . ':delete_cenario');
+})
+->add(new JwtAuthentication([
+    'secret' => getenv('JWT_SECRET_KEY'),
+    'secure' => getenv('JWT_SECURE')
+]));
+
+/*********************
+ * ROTAS DE OPERAÇÕES
+ *********************/
+$app->group('', function () use ($app) {
+    $app->post('/operacao/load_datasets__info', OperacaoController::class . ':load_datasets__info');
+    /**
+     * TODO: Fazer Middleware para permissões
+     */
+    $app->post('/operacao/novo', OperacaoController::class . ':new_operacao');
+    $app->delete('/operacao/deleta/{ids_operacao}', OperacaoController::class . ':delete_operacao');
 })
 ->add(new JwtAuthentication([
     'secret' => getenv('JWT_SECRET_KEY'),

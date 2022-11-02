@@ -39,6 +39,11 @@ class DatasetDAO extends Connection
                 $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
                 $statement = $this->pdo->prepare("SELECT rvd.id,rvd.nome FROM rv__dataset rvd {$whereSQL} ORDER BY rvd.nome ASC");
                 break;
+            case 'operacoes_novo__picker__nome':
+                $whereClause[] = "rvd.id_usuario_criador = {$id_usuario}";
+                $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
+                $statement = $this->pdo->prepare("SELECT rvd.id,rvd.nome,DATE_FORMAT(rvd.data_atualizacao, '%d/%m/%Y %H:%i:%s') as data_atualizacao FROM rv__dataset rvd {$whereSQL} ORDER BY rvd.data_atualizacao DESC");
+                break;
             default:
                 return ['status' => 0, 'error' => 'Dados não passados corretamente', 'data' => NULL];
         }
@@ -67,7 +72,7 @@ class DatasetDAO extends Connection
         $offset = $page * $pageSize;
 
         /**
-         * DATASET TABLE
+         * DATASET INFO
          */
         $queryParams = [];
         $selectClause = ['rvd.*', 'crvo.qtd_ops'];
@@ -130,7 +135,7 @@ class DatasetDAO extends Connection
         $datasets = [];
 
         /**
-         * USUARIOS TABLE
+         * USUARIOS INFO
          */
         while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
             $statement_u = $this->pdo->prepare('SELECT u.id,u.usuario,u.nome FROM rv__dataset__usuario rvd_u INNER JOIN usuario u ON rvd_u.id_usuario=u.id WHERE rvd_u.id_dataset = :id_dataset');

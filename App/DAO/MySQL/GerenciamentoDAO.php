@@ -53,6 +53,30 @@ class GerenciamentoDAO extends Connection
         return ['status' => 1, 'error' => '', 'data' => $suggests];
     }
 
+     /**
+     * Retornar dados dos Gerenciamentos (USADO APENAS POR OUTROS CONTROLLERS)
+     * 
+     * @param id_usuario : Id do usuario logado a fazer esta requisição
+     */
+    public function list_data($id_usuario)
+    {
+        $selectClause = ['rvg.id', 'rvg.nome', 'rvg.acoes', 'rvg.escaladas'];
+
+        // Prepara o SEARCHING
+        $whereClause = [
+            "rvg.id_usuario = {$id_usuario}",
+        ];
+        $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
+        
+        // Capturar as rows para serem mostradas
+        $selectSQL = implode(',', $selectClause);
+        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__gerenciamento rvg {$whereSQL} ORDER BY rvg.nome ASC");
+        $statement->execute();
+        $gerenciamentos = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+        return ['status' => 1, 'error' => '', 'data' => $gerenciamentos];
+    }
+
     /**
      * Retornar dados dos Gerenciamentos para uso no DataGrid.
      * 

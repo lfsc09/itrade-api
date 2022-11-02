@@ -54,6 +54,30 @@ class AtivoDAO extends Connection
     }
 
     /**
+     * Retornar dados dos Ativos (USADO APENAS POR OUTROS CONTROLLERS)
+     * 
+     * @param id_usuario : Id do usuario logado a fazer esta requisição
+     */
+    public function list_data($id_usuario)
+    {
+        $selectClause = ['rva.id', 'rva.nome', 'rva.custo', 'rva.valor_tick', 'rva.pts_tick'];
+
+        // Prepara o SEARCHING
+        $whereClause = [
+            "rva.id_usuario = {$id_usuario}",
+        ];
+        $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
+        
+        // Capturar as rows para serem mostradas
+        $selectSQL = implode(',', $selectClause);
+        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__ativo rva {$whereSQL} ORDER BY rva.nome ASC");
+        $statement->execute();
+        $ativos = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+        return ['status' => 1, 'error' => '', 'data' => $ativos];
+    }
+
+    /**
      * Retornar dados dos Ativos para uso no DataGrid.
      * 
      * @param page       : Index da pagina a ser recuperada [(@param page * @param pageSize * 1) ... (@param pageSize)]
