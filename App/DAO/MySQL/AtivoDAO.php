@@ -212,7 +212,7 @@ class AtivoDAO extends Connection
         try {
             $this->pdo->beginTransaction();
             // Cria o Ativo
-            $statement = $this->pdo->prepare('INSERT INTO rv__ativo (id_usuario,nome,custo,valor_tick,pts_tick) VALUES (:id_usuario, UPPER(:nome), :custo, :valor_tick, :pts_tick)');
+            $statement = $this->pdo->prepare("INSERT INTO rv__ativo (id_usuario,nome,custo,valor_tick,pts_tick) VALUES (:id_usuario, UPPER(:nome), :custo, :valor_tick, :pts_tick)");
             $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
             $statement->bindValue(':nome', $treated_data['nome'], $this->bindValue_Type($treated_data['nome']));
             $statement->bindValue(':custo', $treated_data['custo'], $this->bindValue_Type($treated_data['custo']));
@@ -287,7 +287,7 @@ class AtivoDAO extends Connection
                     $queryParams[":{$name}"] = $value;
                 }
                 $updateSQL = implode(', ', $updateClause);
-                $statement = $this->pdo->prepare("UPDATE rv__ativo SET {$updateSQL} WHERE id=:id_ativo AND id_usuario=:id_usuario");
+                $statement = $this->pdo->prepare("UPDATE rv__ativo SET {$updateSQL} WHERE id = :id_ativo AND id_usuario = :id_usuario");
                 foreach ($queryParams as $name => $value)
                     $statement->bindValue($name, $value, $this->bindValue_Type($value));
                 $statement->execute();
@@ -311,14 +311,13 @@ class AtivoDAO extends Connection
      */
     public function delete_ativo($id_ativo = -1, $id_usuario = -1)
     {
-
         try {
             $this->pdo->beginTransaction();
             $queryParams = [
                 ':id_ativo' => $id_ativo,
                 ':id_usuario' => $id_usuario
             ];
-            $statement = $this->pdo->prepare("DELETE FROM rv__ativo WHERE id=:id_ativo AND id_usuario=:id_usuario");
+            $statement = $this->pdo->prepare("DELETE FROM rv__ativo WHERE id=:id_ativo AND id_usuario = :id_usuario");
             foreach ($queryParams as $name => $value)
                 $statement->bindValue($name, $value, $this->bindValue_Type($value));
             $statement->execute();

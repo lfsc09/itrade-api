@@ -94,4 +94,17 @@ final class DatasetController
             $response = $response->withStatus(500)->write($error);
         return $response;
     }
+
+    public function delete_dataset(Request $request, Response $response, array $args)
+    {
+        $id_usuario = $request->getAttribute('token')['id'];
+        $id_dataset = $request->getAttribute('route')->getArgument('id_dataset');
+        $datasetDAO = new DatasetDAO();
+        [ 'status' => $status, 'error' => $error ] = $datasetDAO->delete_dataset($id_dataset, $id_usuario);
+        if ($status === 1)
+            $response = $response->withStatus(200);
+        else
+            $response = $response->withStatus(500)->write($error);
+        return $response;
+    }
 }

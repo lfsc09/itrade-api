@@ -34,11 +34,13 @@ class DatasetDAO extends Connection
             case 'dashboard__picker__nome':
                 $whereClause[] = "rvd_u.id_usuario = {$id_usuario}";
                 break;
+            // Apenas os Datasets que o usuario é criador
             case 'cenario__picker__nome':
                 $whereClause[] = "rvd.id_usuario_criador = {$id_usuario}";
                 $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
-                $statement = $this->pdo->prepare("SELECT rvd.id,rvd.nome FROM rv__dataset rvd {$whereSQL} ORDER BY rvd.nome ASC");
+                $statement = $this->pdo->prepare("SELECT rvd.id,rvd.nome,DATE_FORMAT(rvd.data_atualizacao, '%d/%m/%Y %H:%i:%s') as data_atualizacao FROM rv__dataset rvd {$whereSQL} ORDER BY rvd.data_atualizacao DESC");
                 break;
+            // Apenas os Datasets que o usuario é criador
             case 'operacoes_novo__picker__nome':
                 $whereClause[] = "rvd.id_usuario_criador = {$id_usuario}";
                 $whereSQL = !empty($whereClause) ? 'WHERE ' . implode(' AND ', $whereClause) : '';
@@ -138,7 +140,7 @@ class DatasetDAO extends Connection
          * USUARIOS INFO
          */
         while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
-            $statement_u = $this->pdo->prepare('SELECT u.id,u.usuario,u.nome FROM rv__dataset__usuario rvd_u INNER JOIN usuario u ON rvd_u.id_usuario=u.id WHERE rvd_u.id_dataset = :id_dataset');
+            $statement_u = $this->pdo->prepare("SELECT u.id,u.usuario,u.nome FROM rv__dataset__usuario rvd_u INNER JOIN usuario u ON rvd_u.id_usuario=u.id WHERE rvd_u.id_dataset = :id_dataset");
             $statement_u->bindValue(':id_dataset', $row['id'], $this->bindValue_Type($row['id']));
             $statement_u->execute();
             $usuarios_dataset = [];
@@ -187,7 +189,7 @@ class DatasetDAO extends Connection
      */
     public function list_edit__usuario($id_usuario = -1)
     {
-        $statement = $this->pdo->prepare('SELECT id,usuario,nome FROM usuario WHERE id != :id_usuario');
+        $statement = $this->pdo->prepare("SELECT id,usuario,nome FROM usuario WHERE id != :id_usuario");
         $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
         $statement->execute();
         $usuarios = $statement->fetchAll(\PDO::FETCH_ASSOC);
@@ -245,7 +247,7 @@ class DatasetDAO extends Connection
         try {
             $this->pdo->beginTransaction();
             // Cria o Dataset
-            $statement = $this->pdo->prepare('INSERT INTO rv__dataset (id_usuario_criador,nome,data_atualizacao,situacao,tipo,observacao) VALUES (:id_usuario_criador, :nome, NOW(), :situacao, :tipo, :observacao)');
+            $statement = $this->pdo->prepare("INSERT INTO rv__dataset (id_usuario_criador,nome,situacao,tipo,observacao) VALUES (:id_usuario_criador, :nome, :situacao, :tipo, :observacao)");
             $statement->bindValue(':id_usuario_criador', $id_usuario, $this->bindValue_Type($id_usuario));
             $statement->bindValue(':nome', $treated_data['nome'], $this->bindValue_Type($treated_data['nome']));
             $statement->bindValue(':situacao', $treated_data['situacao'], $this->bindValue_Type($treated_data['situacao']));
@@ -326,22 +328,22 @@ class DatasetDAO extends Connection
         if ($status === 0)
             return ['status' => 0, 'error' => $error];
 
+        // Checa para ver se o usuario tem acesso ao Dataset (E é o criador)
+        $statement = $this->pdo->prepare("SELECT rvd.id_usuario_criador FROM rv__dataset__usuario rvd_u INNER JOIN rv__dataset rvd ON rvd_u.id_dataset=rvd.id WHERE rvd_u.id_dataset = :id_dataset AND rvd_u.id_usuario = :id_usuario");
+        $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+        $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
+        $statement->execute();
+        $id_criador__raw = $statement->fetch(\PDO::FETCH_ASSOC);
+        $id_criador = $id_criador__raw['id_usuario_criador'] ?: -1;
+        if ($id_criador !== $id_usuario)
+            return ['status' => 0, 'error' => 'Apenas o criador pode alterar este Dataset'];
+
         try {
             $this->pdo->beginTransaction();
-            // Checa para ver se o usuario tem acesso ao arcabouço
-            $statement = $this->pdo->prepare('SELECT rvd.id_usuario_criador FROM rv__dataset__usuario rvd_u INNER JOIN rv__dataset rvd ON rvd_u.id_dataset=rvd.id WHERE rvd_u.id_dataset = :id_dataset AND rvd_u.id_usuario = :id_usuario');
-            $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
-            $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
-            $statement->execute();
-            $id_criador__raw = $statement->fetch(\PDO::FETCH_ASSOC);
-            $id_criador = $id_criador__raw['id_usuario_criador'] ?: -1;
-            if ($id_criador !== $id_usuario)
-                return ['status' => 0, 'error' => 'Apenas o criador pode alterar este Dataset'];
-
             // Atualiza os usuarios com acesso ao Dataset
             if (isset($treated_data['usuarios'])){
                 // Remove o acesso de todos
-                $statement = $this->pdo->prepare('DELETE FROM rv__dataset__usuario WHERE id_dataset = :id_dataset');
+                $statement = $this->pdo->prepare("DELETE FROM rv__dataset__usuario WHERE id_dataset = :id_dataset");
                 $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
                 $statement->execute();
                 // Coloca por padrão o id do usuario criador
@@ -375,7 +377,7 @@ class DatasetDAO extends Connection
                     }
                 }
                 $updateSQL = implode(', ', $updateClause);
-                $statement = $this->pdo->prepare("UPDATE rv__dataset SET {$updateSQL} WHERE id=:id_dataset AND id_usuario_criador=:id_usuario_criador");
+                $statement = $this->pdo->prepare("UPDATE rv__dataset SET {$updateSQL} WHERE id = :id_dataset AND id_usuario_criador = :id_usuario_criador");
                 foreach ($queryParams as $name => $value)
                     $statement->bindValue($name, $value, $this->bindValue_Type($value));
                 $statement->execute();
@@ -391,6 +393,44 @@ class DatasetDAO extends Connection
             else
                 $error = 'Erro ao editar este Dataset';
             return ['status' => 0, 'error' => $error];
+        }
+    }
+
+    /**
+     * Delete um Dataset, apagando tambem os cenários relacionados e as operações
+     */
+    public function delete_dataset($id_dataset = -1, $id_usuario = -1)
+    {
+        // Checa para ver se o usuario tem acesso ao Dataset (E é o criador)
+        $statement = $this->pdo->prepare("SELECT rvd.id_usuario_criador FROM rv__dataset__usuario rvd_u INNER JOIN rv__dataset rvd ON rvd_u.id_dataset=rvd.id WHERE rvd_u.id_dataset = :id_dataset AND rvd_u.id_usuario = :id_usuario");
+        $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+        $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
+        $statement->execute();
+        $id_criador__raw = $statement->fetch(\PDO::FETCH_ASSOC);
+        $id_criador = $id_criador__raw['id_usuario_criador'] ?: -1;
+        if ($id_criador !== $id_usuario)
+            return ['status' => 0, 'error' => 'Apenas o criador pode deletar este Dataset'];
+
+        try {
+            $this->pdo->beginTransaction();
+            // Remove o Dataset
+            $statement = $this->pdo->prepare("DELETE rvd,rvdu FROM rv__dataset rvd LEFT JOIN rv__dataset__usuario rvdu ON rvd.id=rvdu.id_dataset WHERE rvd.id = :id_dataset");
+            $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+            $statement->execute();
+            // Remove os Cenários
+            $statement = $this->pdo->prepare("DELETE rvc,rvco FROM rv__cenario rvc LEFT JOIN rv__cenario_obs rvco ON rvc.id=rvco.id_cenario WHERE rvc.id_dataset = :id_dataset");
+            $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+            $statement->execute();
+            // Remove as operações
+            $statement = $this->pdo->prepare("DELETE FROM rv__operacoes WHERE id_dataset = :id_dataset");
+            $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+            $statement->execute();
+            $this->pdo->commit();
+            return ['status' => 1, 'error' => ''];
+        }
+        catch (PDOException $exception) {
+            $this->pdo->rollBack();
+            return ['status' => 0, 'error' => 'Erro ao deletar este Dataset'];
         }
     }
 }

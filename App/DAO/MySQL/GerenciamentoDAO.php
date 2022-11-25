@@ -60,7 +60,7 @@ class GerenciamentoDAO extends Connection
      */
     public function list_data($id_usuario)
     {
-        $selectClause = ['rvg.id', 'rvg.nome', 'rvg.acoes', 'rvg.escaladas'];
+        $selectClause = ['rvg.id', 'rvg.nome'];
 
         // Prepara o SEARCHING
         $whereClause = [
@@ -145,20 +145,7 @@ class GerenciamentoDAO extends Connection
         foreach ($queryParams as $name => $value)
             $statement->bindValue($name, $value, $this->bindValue_Type($value));
         $statement->execute();
-
-        $gerenciamentos = [];
-        while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
-            $acoes_decoded = json_decode($row['acoes'], TRUE);
-            $escaladas_decoded = json_decode($row['escaladas'], TRUE);
-            $acoes = [];
-            for ($i=0; $i < count($acoes_decoded); $i++)
-                $acoes[] = ['acao' => (int) $acoes_decoded[$i], 'escalada' => (int) $escaladas_decoded[$i]];
-            $gerenciamentos[] = [
-                'id' => $row['id'],
-                'nome' => $row['nome'],
-                'acoes' => $acoes
-            ];
-        }
+        $gerenciamentos = $statement->fetchAll(\PDO::FETCH_ASSOC);
 
         return ['status' => 1, 'error' => '', 'data' => ['rowCount' => $total_rows, 'rows' => $gerenciamentos]];
     }
@@ -168,29 +155,14 @@ class GerenciamentoDAO extends Connection
      */
     public function list_edit($id_gerenciamento = -1, $id_usuario = -1)
     {
-        $selectClause = ['rvg.id', 'rvg.nome', 'rvg.acoes', 'rvg.escaladas'];
+        $selectClause = ['rvg.id', 'rvg.nome'];
         $selectSQL = implode(',', $selectClause);
         $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__gerenciamento rvg WHERE rvg.id = :id_gerenciamento AND rvg.id_usuario = :id_usuario");
         $statement->bindValue(':id_gerenciamento', $id_gerenciamento, $this->bindValue_Type($id_gerenciamento));
         $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
         $statement->execute();
-        $row = $statement->fetch(\PDO::FETCH_ASSOC);
-
-        if ($row){
-            $acoes_decoded = json_decode($row['acoes'], TRUE);
-            $escaladas_decoded = json_decode($row['escaladas'], TRUE);
-            $acoes = [];
-            for ($i=0; $i < count($acoes_decoded); $i++)
-                $acoes[] = ['key' => $i, 'acao' => (int) $acoes_decoded[$i], 'escalada' => (int) $escaladas_decoded[$i]];
-            $gerenciamento = [
-                'id' => $row['id'],
-                'nome' => $row['nome'],
-                'acoes' => $acoes
-            ];
-            return ['data' => $gerenciamento];
-        }
-        else
-            return ['data' => NULL];
+        $gerenciamento = $statement->fetch(\PDO::FETCH_ASSOC);
+        return ['data' => $gerenciamento ?: NULL];
     }
 
     /**
@@ -198,8 +170,6 @@ class GerenciamentoDAO extends Connection
      * 
      * @param array fetched_data = [
      *      'nome'      => @var string Nome do Gerenciamento
-     *      'acoes'     => @var string Array stringified de ações de Gain/Loss em Scalps
-     *      'escaladas' => @var string Array stringified de quantidade de escaladas das respectivas ações
      * ]
      */
     private function new_gerenciamento__fetchedData($fetched_data = [])
@@ -209,16 +179,10 @@ class GerenciamentoDAO extends Connection
             return ['status' => 0, 'error' => 'Sem dados passados', 'treated_data' => NULL];
         if (!isset($fetched_data['nome']) || $fetched_data['nome'] === '')
             return ['status' => 0, 'error' => 'Nome é obrigatório', 'treated_data' => NULL];
-        if (!isset($fetched_data['acoes']) || $fetched_data['acoes'] === '')
-            return ['status' => 0, 'error' => 'As ações são obrigatórias', 'treated_data' => NULL];
-        if (!isset($fetched_data['escaladas']) || $fetched_data['escaladas'] === '')
-            return ['status' => 0, 'error' => 'As escaladas são obrigatórias', 'treated_data' => NULL];
 
         // Trata dados
         $treated_data = [
             'nome' => $fetched_data['nome'],
-            'acoes' => $fetched_data['acoes'],
-            'escaladas' => $fetched_data['escaladas']
         ];
 
         return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
@@ -236,11 +200,9 @@ class GerenciamentoDAO extends Connection
         try {
             $this->pdo->beginTransaction();
             // Cria o Gerenciamento
-            $statement = $this->pdo->prepare('INSERT INTO rv__gerenciamento (id_usuario,nome,acoes,escaladas) VALUES (:id_usuario, UPPER(:nome), :acoes, :escaladas)');
+            $statement = $this->pdo->prepare("INSERT INTO rv__gerenciamento (id_usuario,nome) VALUES (:id_usuario, UPPER(:nome))");
             $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
             $statement->bindValue(':nome', $treated_data['nome'], $this->bindValue_Type($treated_data['nome']));
-            $statement->bindValue(':acoes', $treated_data['acoes'], $this->bindValue_Type($treated_data['acoes']));
-            $statement->bindValue(':escaladas', $treated_data['escaladas'], $this->bindValue_Type($treated_data['escaladas']));
             $statement->execute();
 
             $this->pdo->commit();
@@ -261,8 +223,6 @@ class GerenciamentoDAO extends Connection
      * 
      * @param array fetched_data = [
      *      'nome'      => @var string Nome do Gerenciamento
-     *      'acoes'     => @var string Array stringified de ações de Gain/Loss em Scalps
-     *      'escaladas' => @var string Array stringified de quantidade de escaladas das respectivas ações
      * ]
      */
     private function edit_gerenciamento__fetchedData($fetched_data = [])
@@ -276,10 +236,6 @@ class GerenciamentoDAO extends Connection
         // Trata dados
         if (isset($fetched_data['nome']) && $fetched_data['nome'] !== '')
             $treated_data['nome'] = $fetched_data['nome'];
-        if (isset($fetched_data['acoes']) && $fetched_data['acoes'] !== '')
-            $treated_data['acoes'] = $fetched_data['acoes'];
-        if (isset($fetched_data['escaladas']) && $fetched_data['escaladas'] !== '')
-            $treated_data['escaladas'] = $fetched_data['escaladas'];
 
         return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
     }
@@ -296,7 +252,7 @@ class GerenciamentoDAO extends Connection
         try {
             $this->pdo->beginTransaction();
             // Edita o Gerenciamento
-            if (isset($treated_data['nome']) || isset($treated_data['acoes']) || isset($treated_data['escaladas'])){
+            if (isset($treated_data['nome'])){
                 $updateClause = [];
                 $queryParams = [
                     ':id_gerenciamento' => $id_gerenciamento,
@@ -307,7 +263,7 @@ class GerenciamentoDAO extends Connection
                     $queryParams[":{$name}"] = $value;
                 }
                 $updateSQL = implode(', ', $updateClause);
-                $statement = $this->pdo->prepare("UPDATE rv__gerenciamento SET {$updateSQL} WHERE id=:id_gerenciamento AND id_usuario=:id_usuario");
+                $statement = $this->pdo->prepare("UPDATE rv__gerenciamento SET {$updateSQL} WHERE id = :id_gerenciamento AND id_usuario = :id_usuario");
                 foreach ($queryParams as $name => $value)
                     $statement->bindValue($name, $value, $this->bindValue_Type($value));
                 $statement->execute();
@@ -331,7 +287,6 @@ class GerenciamentoDAO extends Connection
      */
     public function delete_gerenciamento($id_gerenciamento = -1, $id_usuario = -1)
     {
-
         try {
             $this->pdo->beginTransaction();
             $queryParams = [

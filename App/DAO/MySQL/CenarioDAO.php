@@ -101,191 +101,249 @@ class CenarioDAO extends Connection
     }
 
     /**
-     * Retornar dados do Cenario para Edição
-     */
-    public function list_edit($id_cenario = -1, $id_usuario = -1)
-    {
-        $selectClause = ['rvc.id', 'rvc.nome', 'rvc.acoes', 'rvc.escaladas'];
-        $selectSQL = implode(',', $selectClause);
-        $statement = $this->pdo->prepare("SELECT {$selectSQL} FROM rv__cenario rvc WHERE rvc.id = :id_cenario AND rvc.id_usuario = :id_usuario");
-        $statement->bindValue(':id_cenario', $id_cenario, $this->bindValue_Type($id_cenario));
-        $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
-        $statement->execute();
-        $row = $statement->fetch(\PDO::FETCH_ASSOC);
-
-        if ($row){
-            $acoes_decoded = json_decode($row['acoes'], TRUE);
-            $escaladas_decoded = json_decode($row['escaladas'], TRUE);
-            $acoes = [];
-            for ($i=0; $i < count($acoes_decoded); $i++)
-                $acoes[] = ['key' => $i, 'acao' => (int) $acoes_decoded[$i], 'escalada' => (int) $escaladas_decoded[$i]];
-            $cenario = [
-                'id' => $row['id'],
-                'nome' => $row['nome'],
-                'acoes' => $acoes
-            ];
-            return ['data' => $cenario];
-        }
-        else
-            return ['data' => NULL];
-    }
-
-    /**
      * Verifica e retorna os dados para serem inseridos (Novo Cenario)
      * 
      * @param array fetched_data = [
-     *      'nome'      => @var string Nome do Cenario
-     *      'acoes'     => @var string Array stringified de ações de Gain/Loss em Scalps
-     *      'escaladas' => @var string Array stringified de quantidade de escaladas das respectivas ações
+     *      'id_dataset'          => @var int Id do Dataset, a quem pertence os cenarios
+     *      'cenarios_delete'     => @var Array Array de ids de cenarios a serem excluidos
+     *      'cenarios_create'     => @var Array de [
+     *          'nome'        => @var string Nome do Cenário
+     *          'observacoes' => @var Array de [
+     *              'ref'  => @var int Numero de referencia da Observação
+     *              'nome' => @var string Nome da Observação
+     *          ]
+     *      ]
+     *      'cenarios_update'     => @var Array de [
+     *          'id'         => @var int Id do cenário sendo alterado
+     *          'nome'       => @var string Novo nome do cenário (OPCIONAL)
+     *          'obs_delete' => @var Array de ids de observações a serem excluidas
+     *          'obs_create' => @var Array de [
+     *              'ref'  => @var int Numero de referencia da nova Observação
+     *              'nome' => @var string Nome da Observação
+     *          ]
+     *          'obs_update' => @var Array de [
+     *              'id'   => @var int Id da observação sendo alterada
+     *              'ref'  => @var int Novo ref da observação (OPCIONAL)
+     *              'nome' => @var string Novo nome da observação (OPCIONAL)
+     *          ]
+     *      ]
      * ]
      */
-    private function new_cenario__fetchedData($fetched_data = [])
+    private function manage_cenario__fetchedData($fetched_data = [])
     {
         // Itens Obrigatórios
         if (empty($fetched_data))
             return ['status' => 0, 'error' => 'Sem dados passados', 'treated_data' => NULL];
-        if (!isset($fetched_data['nome']) || $fetched_data['nome'] === '')
-            return ['status' => 0, 'error' => 'Nome é obrigatório', 'treated_data' => NULL];
-        if (!isset($fetched_data['acoes']) || $fetched_data['acoes'] === '')
-            return ['status' => 0, 'error' => 'As ações são obrigatórias', 'treated_data' => NULL];
-        if (!isset($fetched_data['escaladas']) || $fetched_data['escaladas'] === '')
-            return ['status' => 0, 'error' => 'As escaladas são obrigatórias', 'treated_data' => NULL];
-
+        if (!isset($fetched_data['id_dataset']) || $fetched_data['id_dataset'] === '')
+            return ['status' => 0, 'error' => 'Dataset deve ser informado', 'treated_data' => NULL];
+            
         // Trata dados
         $treated_data = [
-            'nome' => $fetched_data['nome'],
-            'acoes' => $fetched_data['acoes'],
-            'escaladas' => $fetched_data['escaladas']
+            'id_dataset' => $fetched_data['id_dataset'],
+            'cenarios_delete' => $fetched_data['cenarios_delete'] ?? [],
+            'cenarios_create' => $fetched_data['cenarios_create'] ?? [],
+            'cenarios_update' => $fetched_data['cenarios_update'] ?? []
         ];
+        
+        if (empty($treated_data['cenarios_delete']) && empty($treated_data['cenarios_create']) && empty($treated_data['cenarios_update']))
+            return ['status' => 0, 'error' => 'Nada a fazer', 'treated_data' => NULL];
 
         return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
     }
 
     /**
-     * Recebe dados de Cenario para criar um novo
+     * Recebe dados dos Cenários para Criar / Alterar / Remover.
+     * 
+     * Os cenários e suas observações são sempre excluidos, e recriados para evitar erros de duplicação.
      */
-    public function new_cenario($fetched_data = [], $id_usuario = -1)
+    public function manage_cenario($fetched_data = [], $id_usuario = -1)
     {
-        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->new_cenario__fetchedData($fetched_data);
+        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->manage_cenario__fetchedData($fetched_data);
         if ($status === 0)
             return ['status' => 0, 'error' => $error];
 
+        $id_dataset = $fetched_data['id_dataset'];
+
+        // Checa para ver se o usuario tem acesso ao Dataset (E é o criador)
+        $statement = $this->pdo->prepare("SELECT rvd.id_usuario_criador FROM rv__dataset__usuario rvd_u INNER JOIN rv__dataset rvd ON rvd_u.id_dataset=rvd.id WHERE rvd_u.id_dataset = :id_dataset AND rvd_u.id_usuario = :id_usuario");
+        $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+        $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
+        $statement->execute();
+        $id_criador__raw = $statement->fetch(\PDO::FETCH_ASSOC);
+        $id_criador = $id_criador__raw['id_usuario_criador'] ?: -1;
+        if ($id_criador !== $id_usuario)
+            return ['status' => 0, 'error' => 'Apenas o criador pode modificar os Cenários'];
+
+        // Pega todos os cenarios e observações atuais do Dataset
+        $statement = $this->pdo->prepare("SELECT rvc.* FROM rv__cenario rvc WHERE rvc.id_dataset = :id_dataset");
+        $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+        $statement->execute();
+        $cenarios_atuais = [];
+        while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
+            $statement_o = $this->pdo->prepare("SELECT rvco.* FROM rv__cenario_obs rvco WHERE rvco.id_cenario = :id_cenario");
+            $statement_o->bindValue(':id_cenario', $row['id'], $this->bindValue_Type($row['id']));
+            $statement_o->execute();
+
+            $observacoes_atuais = [];
+            while ($row_o = $statement->fetch(\PDO::FETCH_ASSOC))
+                $observacoes_atuais[$row_o['id']] = [...$row_o];
+            
+            $cenarios_atuais[$row['id']] = [
+                ...$row,
+                'observacoes' => $observacoes_atuais
+            ];
+        }
+
+        // Cenários a serem excluidos
+        foreach ($fetched_data['cenarios_delete'] as $id_cenario_del) {
+            unset($cenarios_atuais[$id_cenario_del]);
+        }
+
+        // Cenários a serem alterados
+        foreach ($fetched_data['cenarios_update'] as $cenario_update) {
+            // Há alteração de nome do Cenário
+            if (array_key_exists('nome', $cenario_update)) {
+                // Verifica nome duplicado
+                foreach ($cenarios_atuais as $cenario_atual) {
+                    if ($cenario_update['nome'] === $cenario_atual['nome'])
+                        return ['status' => 0, 'error' => "O nome '{$cenario_update['nome']}' já existe em outro Cenário"];
+                }
+                $cenarios_atuais[$cenario_update['id']]['nome'] = $cenario_update['nome'];
+            }
+
+            // Há observações a serem removidas
+            if (array_key_exists('obs_delete', $cenario_update)) {
+                foreach ($cenario_update['obs_delete'] as $id_obs_del)
+                    unset($cenarios_atuais[$cenario_update['id']]['observacoes'][$id_obs_del]);
+            }
+            // Há alterações nas observações
+            if (array_key_exists('obs_update', $cenario_update)) {
+                foreach ($cenario_update['obs_update'] as $obs_update) {
+                    // Verifica ref ou nome duplicado
+                    foreach ($cenarios_atuais[$cenario_update['id']]['observacoes'] as $obs_atual) {
+                        if (array_key_exists('ref', $obs_update)) {
+                            if ($obs_update['ref'] === $obs_atual['ref'])
+                                return ['status' => 0, 'error' => "A ref '{$obs_update['ref']}' já é usada em outra Observação"];
+                        }
+                        if (array_key_exists('nome', $obs_update)) {
+                            if ($obs_update['nome'] === $obs_atual['nome'])
+                                return ['status' => 0, 'error' => "O nome '{$obs_update['nome']}' já é usada em outra Observação"];
+                        }
+                    }
+                    // Há alteração de ref da Observação
+                    if (array_key_exists('ref', $obs_update))
+                        $cenarios_atuais[$cenario_update['id']]['observacoes'][$obs_update['id']]['ref'] = $obs_update['ref'];
+                    // Há alteração de nome da Observação
+                    if (array_key_exists('nome', $obs_update))
+                        $cenarios_atuais[$cenario_update['id']]['observacoes'][$obs_update['id']]['nome'] = $obs_update['nome'];
+                }
+            }
+            // Há novas observações
+            if (array_key_exists('obs_create', $cenario_update)) {
+                foreach ($cenario_update['obs_create'] as $obs_create) {
+                    // Verifica ref ou nome duplicado
+                    foreach ($cenarios_atuais[$cenario_update['id']]['observacoes'] as $obs_atual) {
+                        if ($obs_create['ref'] === $obs_atual['ref'])
+                            return ['status' => 0, 'error' => "A ref '{$obs_create['ref']}' já é usada em outra Observação"];
+                        if ($obs_create['nome'] === $obs_atual['nome'])
+                            return ['status' => 0, 'error' => "O nome '{$obs_create['nome']}' já é usada em outra Observação"];
+                    }
+                    $cenarios_atuais[$cenario_update['id']]['observacoes'][] = [
+                        'ref' => $obs_create['ref'],
+                        'nome' => $obs_create['nome']
+                    ];
+                }
+            }
+        }
+
+        // Cenários a serem criados
+        foreach ($fetched_data['cenarios_create'] as $cenario_create) {
+            // Verifica nome duplicado
+            foreach ($cenarios_atuais as $cenario_atual) {
+                if ($cenario_create['nome'] === $cenario_atual['nome'])
+                    return ['status' => 0, 'error' => "O nome '{$cenario_create['nome']}' já existe em outro Cenário"];
+            }
+
+            $novas_obs = [];
+            foreach ($cenario_create['observacoes'] as $obs_to_create) {
+                // Verifica refs e nomes duplicados
+                foreach ($novas_obs as $nova_obs) {
+                    if ($obs_to_create['ref'] === $nova_obs['ref'])
+                        return ['status' => 0, 'error' => "A ref '{$obs_to_create['ref']}' já é usada em outra Observação"];
+                    if ($obs_to_create['nome'] === $nova_obs['nome'])
+                        return ['status' => 0, 'error' => "O nome '{$obs_to_create['nome']}' já é usada em outra Observação"]; 
+                }
+                $novas_obs[] = [
+                    'ref' => $obs_to_create['ref'],
+                    'nome' => $obs_to_create['nome']
+                ];
+            }
+
+            $cenarios_atuais[] = [
+                'nome' => $cenario_create['nome'],
+                'observacoes' => $novas_obs
+            ];
+        }
+
         try {
             $this->pdo->beginTransaction();
-            // Cria o Cenario
-            $statement = $this->pdo->prepare('INSERT INTO rv__cenario (id_usuario,nome,acoes,escaladas) VALUES (:id_usuario, UPPER(:nome), :acoes, :escaladas)');
-            $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
-            $statement->bindValue(':nome', $treated_data['nome'], $this->bindValue_Type($treated_data['nome']));
-            $statement->bindValue(':acoes', $treated_data['acoes'], $this->bindValue_Type($treated_data['acoes']));
-            $statement->bindValue(':escaladas', $treated_data['escaladas'], $this->bindValue_Type($treated_data['escaladas']));
+            // Apaga os cenarios para recria-los
+            $statement = $this->pdo->prepare("DELETE rvc,rvco FROM rv__cenario rvc LEFT JOIN rv__cenario_obs rvco ON rvc.id=rvco.id_cenario WHERE rvc.id_dataset = :id_dataset");
+            $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
             $statement->execute();
-
+            // Inserir os cenarios tratados
+            foreach ($cenarios_atuais as $cenario_atual) {
+                $id_cenario = NULL;
+                // Re-insere um cenario já existente com as novas infos
+                if (array_key_exists('id', $cenario_atual)) {
+                    $id_cenario = $cenario_atual['id'];
+                    $statement = $this->pdo->prepare("INSERT INTO rv__cenario (id,id_dataset,nome) VALUES (:id, :id_dataset, :nome)");
+                    $statement->bindValue(':id', $id_cenario, $this->bindValue_Type($id_cenario));
+                    $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+                    $statement->bindValue(':nome', $cenario_atual['nome'], $this->bindValue_Type($cenario_atual['nome']));
+                    $statement->execute();
+                }
+                // É um novo cenario
+                else {
+                    $statement = $this->pdo->prepare("INSERT INTO rv__cenario (id_dataset,nome) VALUES (:id_dataset, :nome)");
+                    $statement->bindValue(':id_dataset', $id_dataset, $this->bindValue_Type($id_dataset));
+                    $statement->bindValue(':nome', $cenario_atual['nome'], $this->bindValue_Type($cenario_atual['nome']));
+                    $statement->execute();
+                    $id_cenario = $this->pdo->lastInsertId();
+                }
+                // Insere observações
+                if (!empty($cenario_atual['observacoes'])) {
+                    foreach ($cenario_atual['observacoes'] as $obs_atual) {
+                        // Re-insere uma observação já existente com novas infos
+                        if (array_key_exists('id', $obs_atual)) {
+                            $statement = $this->pdo->prepare("INSERT INTO rv__cenario_obs (id,id_cenario,ref,nome) VALUES (:id, :id_cenario, :ref, :nome)");
+                            $statement->bindValue(':id', $obs_atual['id'], $this->bindValue_Type($obs_atual['id']));
+                            $statement->bindValue(':id_cenario', $id_cenario, $this->bindValue_Type($id_cenario));
+                            $statement->bindValue(':ref', $obs_atual['ref'], $this->bindValue_Type($obs_atual['ref']));
+                            $statement->bindValue(':nome', $obs_atual['nome'], $this->bindValue_Type($obs_atual['nome']));
+                            $statement->execute();
+                        }
+                        // É uma nova observação
+                        else {
+                            $statement = $this->pdo->prepare("INSERT INTO rv__cenario_obs (id_cenario,ref,nome) VALUES (:id_cenario, :ref, :nome)");
+                            $statement->bindValue(':id_cenario', $id_cenario, $this->bindValue_Type($id_cenario));
+                            $statement->bindValue(':ref', $obs_atual['ref'], $this->bindValue_Type($obs_atual['ref']));
+                            $statement->bindValue(':nome', $obs_atual['nome'], $this->bindValue_Type($obs_atual['nome']));
+                            $statement->execute();
+                        }
+                    }
+                }
+            }
             $this->pdo->commit();
             return ['status' => 1, 'error' => ''];
         }
         catch (\PDOException $exception) {
             $this->pdo->rollBack();
             if (in_array($exception->getCode(), [1062, 23000]))
-                $error = 'Cenario já cadastrado';
+                $error = 'Algum cenário ou observação já está cadastrado';
             else
-                $error = 'Erro ao cadastrar este Cenario';
+                $error = 'Erro ao fazer estas mudanças';
             return ['status' => 0, 'error' => $error];
-        }
-    }
-
-    /**
-     * Verifica e retorna os dados para serem editados (Edição do Cenario)
-     * 
-     * @param array fetched_data = [
-     *      'nome'      => @var string Nome do Cenario
-     *      'acoes'     => @var string Array stringified de ações de Gain/Loss em Scalps
-     *      'escaladas' => @var string Array stringified de quantidade de escaladas das respectivas ações
-     * ]
-     */
-    private function edit_cenario__fetchedData($fetched_data = [])
-    {
-        // Itens Obrigatórios
-        if (empty($fetched_data))
-            return ['status' => 0, 'error' => 'Sem dados passados', 'treated_data' => NULL];
-
-        $treated_data = [];
-
-        // Trata dados
-        if (isset($fetched_data['nome']) && $fetched_data['nome'] !== '')
-            $treated_data['nome'] = $fetched_data['nome'];
-        if (isset($fetched_data['acoes']) && $fetched_data['acoes'] !== '')
-            $treated_data['acoes'] = $fetched_data['acoes'];
-        if (isset($fetched_data['escaladas']) && $fetched_data['escaladas'] !== '')
-            $treated_data['escaladas'] = $fetched_data['escaladas'];
-
-        return ['status' => 1, 'error' => '', 'treated_data' => $treated_data];
-    }
-
-    /**
-     * Recebe dados do Cenario para editar
-     */
-    public function edit_cenario($fetched_data = [], $id_cenario = -1, $id_usuario = -1)
-    {
-        [ 'status' => $status, 'error' => $error, 'treated_data' => $treated_data ] = $this->edit_cenario__fetchedData($fetched_data);
-        if ($status === 0)
-            return ['status' => 0, 'error' => $error];
-
-        try {
-            $this->pdo->beginTransaction();
-            // Edita o Cenario
-            if (isset($treated_data['nome']) || isset($treated_data['acoes']) || isset($treated_data['escaladas'])){
-                $updateClause = [];
-                $queryParams = [
-                    ':id_cenario' => $id_cenario,
-                    ':id_usuario' => $id_usuario
-                ];
-                foreach ($treated_data as $name => $value){
-                    $updateClause[] = "{$name} = :{$name}";
-                    $queryParams[":{$name}"] = $value;
-                }
-                $updateSQL = implode(', ', $updateClause);
-                $statement = $this->pdo->prepare("UPDATE rv__cenario SET {$updateSQL} WHERE id=:id_cenario AND id_usuario=:id_usuario");
-                foreach ($queryParams as $name => $value)
-                    $statement->bindValue($name, $value, $this->bindValue_Type($value));
-                $statement->execute();
-            }
-
-            $this->pdo->commit();
-            return ['status' => 1, 'error' => ''];
-        }
-        catch (PDOException $exception) {
-            $this->pdo->rollBack();
-            if (in_array($exception->getCode(), [1062, 23000]))
-                $error = 'Um cenario com esse nome já está cadastrado';
-            else
-                $error = 'Erro ao editar este Cenario';
-            return ['status' => 0, 'error' => $error];
-        }
-    }
-
-    /**
-     * Delete um Cenario
-     */
-    public function delete_cenario($id_cenario = -1, $id_usuario = -1)
-    {
-
-        try {
-            $this->pdo->beginTransaction();
-            $queryParams = [
-                ':id_cenario' => $id_cenario,
-                ':id_usuario' => $id_usuario
-            ];
-            $statement = $this->pdo->prepare("DELETE FROM rv__cenario WHERE id=:id_cenario AND id_usuario=:id_usuario");
-            foreach ($queryParams as $name => $value)
-                $statement->bindValue($name, $value, $this->bindValue_Type($value));
-            $statement->execute();
-
-            $this->pdo->commit();
-            return ['status' => 1, 'error' => ''];
-        }
-        catch (PDOException $exception) {
-            $this->pdo->rollBack();
-            return ['status' => 0, 'error' => 'Erro ao deletar este Cenario'];
         }
     }
 }

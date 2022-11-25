@@ -19,7 +19,7 @@ class DashboardDAO extends Connection
      */
     public function list__dataset($id_usuario)
     {
-        $statement = $this->pdo->prepare('SELECT id,id_usuario_criador,nome FROM rv__dataset rvd INNER JOIN rv__dataset__usuario rvd_u ON rvd.id=rvd_u.id_dataset WHERE rvd_u.id_usuario = :id_usuario ORDER BY data_atualizacao DESC');
+        $statement = $this->pdo->prepare("SELECT id,id_usuario_criador,nome,DATE_FORMAT(data_atualizacao, '%d/%m/%Y %H:%i:%s') as data_atualizacao FROM rv__dataset rvd INNER JOIN rv__dataset__usuario rvd_u ON rvd.id=rvd_u.id_dataset WHERE rvd_u.id_usuario = :id_usuario ORDER BY data_atualizacao DESC");
         $statement->bindValue(':id_usuario', $id_usuario, $this->bindValue_Type($id_usuario));
         $statement->execute();
         $datasets = $statement->fetchAll(\PDO::FETCH_ASSOC);
@@ -158,18 +158,15 @@ class DashboardDAO extends Connection
                 'data' => "{$row['data']} 00:00:00",
                 'ativo' => $row['ativo'],
                 'op' => (int) $row['op'],
-                'vol' => (float) $row['vol'],
                 'cts' => (int) $row['cts'],
                 'hora' => $row['hora'],
-                'escalada' => (int) $row['escalada'],
                 'resultado' => (float) $row['resultado'],
                 'cenario' => $row['cenario'],
                 'observacoes' => $row['observacoes'],
                 'erro' => (int) $row['erro'],
                 'ativo_custo' => (float) $row['ativo_custo'],
                 'ativo_valor_tick' => (float) $row['ativo_valor_tick'],
-                'ativo_pts_tick' => (float) $row['ativo_pts_tick'],
-                'gerenciamento_acoes' => json_decode($row['gerenciamento_acoes'], true)
+                'ativo_pts_tick' => (float) $row['ativo_pts_tick']
             ];
         }
 

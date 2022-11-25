@@ -54,7 +54,7 @@ class UsuarioDAO extends Connection
         if ($status === 0)
             return ['status' => 0, 'error' => $error, 'data' => NULL];
         
-        $statement = $this->pdo->prepare('SELECT id,usuario,nome,senha FROM usuario WHERE usuario = :usuario');
+        $statement = $this->pdo->prepare("SELECT id,usuario,nome,senha FROM usuario WHERE usuario = :usuario");
         $statement->bindValue(':usuario', $usuario, $this->bindValue_Type($usuario));
         $statement->execute();
         $usuario = $statement->fetch(\PDO::FETCH_ASSOC);

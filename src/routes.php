@@ -105,10 +105,7 @@ $app->group('', function () use ($app) {
     /**
      * TODO: Fazer Middleware para permissões
      */
-    $app->get('/cenario/list_edita/{id_cenario}', CenarioController::class . ':list_edit');
-    $app->post('/cenario/novo', CenarioController::class . ':new_cenario');
-    $app->put('/cenario/edita/{id_cenario}', CenarioController::class . ':edit_cenario');
-    $app->delete('/cenario/deleta/{id_cenario}', CenarioController::class . ':delete_cenario');
+    $app->post('/cenario/gerencia', CenarioController::class . ':manage_cenario');
 })
 ->add(new JwtAuthentication([
     'secret' => getenv('JWT_SECRET_KEY'),
