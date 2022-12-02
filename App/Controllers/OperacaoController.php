@@ -35,4 +35,17 @@ final class OperacaoController
         $response = $response->withJson(['ativos' => $ativos, 'gerenciamentos' => $gerenciamentos, 'cenarios' => $cenarios], 200);
         return $response;
     }
+
+    public function new_operacao(Request $request, Response $response, array $args)
+    {
+        $id_usuario = $request->getAttribute('token')['id'];
+        $fetched_data = $request->getParsedBody();
+        $operacaoDAO = new OperacaoDAO();
+        [ 'status' => $status, 'error' => $error ] = $operacaoDAO->new_operacao($fetched_data, $id_usuario);
+        if ($status === 1)
+            $response = $response->withStatus(200);
+        else
+            $response = $response->withStatus(500)->write($error);
+        return $response;
+    }
 }

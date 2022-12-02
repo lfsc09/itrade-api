@@ -40,6 +40,7 @@ final class AuthController
                 'id' => $tokenData['id_usuario'],
                 'usuario' => $usuario['usuario'],
                 'nome' => $usuario['nome'],
+                'host' => 'itrade-dongs',
                 'iat' => strtotime($tokenData['criado_em']),
                 'exp' => strtotime($tokenData['expira_em'])
             ];

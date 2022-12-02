@@ -104,16 +104,16 @@ class CenarioDAO extends Connection
      * Verifica e retorna os dados para serem inseridos (Novo Cenario)
      * 
      * @param array fetched_data = [
-     *      'id_dataset'          => @var int Id do Dataset, a quem pertence os cenarios
-     *      'cenarios_delete'     => @var Array Array de ids de cenarios a serem excluidos
-     *      'cenarios_create'     => @var Array de [
+     *      'id_dataset'      => @var int Id do Dataset, a quem pertence os cenarios
+     *      'cenarios_delete' => @var Array Array de ids de cenarios a serem excluidos
+     *      'cenarios_create' => @var Array de [
      *          'nome'        => @var string Nome do Cenário
      *          'observacoes' => @var Array de [
      *              'ref'  => @var int Numero de referencia da Observação
      *              'nome' => @var string Nome da Observação
      *          ]
      *      ]
-     *      'cenarios_update'     => @var Array de [
+     *      'cenarios_update' => @var Array de [
      *          'id'         => @var int Id do cenário sendo alterado
      *          'nome'       => @var string Novo nome do cenário (OPCIONAL)
      *          'obs_delete' => @var Array de ids de observações a serem excluidas
@@ -185,7 +185,7 @@ class CenarioDAO extends Connection
             $statement_o->execute();
 
             $observacoes_atuais = [];
-            while ($row_o = $statement->fetch(\PDO::FETCH_ASSOC))
+            while ($row_o = $statement_o->fetch(\PDO::FETCH_ASSOC))
                 $observacoes_atuais[$row_o['id']] = [...$row_o];
             
             $cenarios_atuais[$row['id']] = [

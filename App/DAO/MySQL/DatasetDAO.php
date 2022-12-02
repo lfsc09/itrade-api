@@ -31,9 +31,6 @@ class DatasetDAO extends Connection
         
         // SEMPRE fazer as queries especificas para o MODULO__LOCAL__INPUT fazendo a requisição (SEM generalizações no código)
         switch ($place) {
-            case 'dashboard__picker__nome':
-                $whereClause[] = "rvd_u.id_usuario = {$id_usuario}";
-                break;
             // Apenas os Datasets que o usuario é criador
             case 'cenario__picker__nome':
                 $whereClause[] = "rvd.id_usuario_criador = {$id_usuario}";
