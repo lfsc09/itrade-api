@@ -161,6 +161,7 @@ class DashboardDAO extends Connection
                 'cts' => (int) $row['cts'],
                 'hora' => $row['hora'],
                 'resultado' => (float) $row['resultado'],
+                'retorno_risco' => (float) $row['retorno_risco'],
                 'cenario' => $row['cenario'],
                 'observacoes' => $row['observacoes'],
                 'erro' => (int) $row['erro'],
