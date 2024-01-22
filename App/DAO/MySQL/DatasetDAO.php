@@ -383,7 +383,7 @@ class DatasetDAO extends Connection
             $this->pdo->commit();
             return ['status' => 1, 'error' => ''];
         }
-        catch (PDOException $exception) {
+        catch (\PDOException $exception) {
             $this->pdo->rollBack();
             if (in_array($exception->getCode(), [1062, 23000]))
                 $error = 'Um dataset com esse nome já está cadastrado';
@@ -425,7 +425,7 @@ class DatasetDAO extends Connection
             $this->pdo->commit();
             return ['status' => 1, 'error' => ''];
         }
-        catch (PDOException $exception) {
+        catch (\PDOException $exception) {
             $this->pdo->rollBack();
             return ['status' => 0, 'error' => 'Erro ao deletar este Dataset'];
         }
