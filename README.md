@@ -38,13 +38,13 @@ DEALLOCATE PREPARE stmt;
 4 - Exportar o BD:
 
 ```
-mysqldump.exe -u root -pitrade@124 u631028490_iTrade > u631028490_iTrade.sql
+mysqldump.exe -u root -p%PASSWORD% u631028490_iTrade > u631028490_iTrade.sql
 ```
 
 **_Powershell_**
 
 ```
-cmd.exe /c "mysqldump.exe -u root -pitrade@124 u631028490_iTrade > u631028490_iTrade.sql"
+cmd.exe /c "mysqldump.exe -u root -p%PASSWORD% u631028490_iTrade > u631028490_iTrade.sql"
 ```
 
 <br>
@@ -52,13 +52,13 @@ cmd.exe /c "mysqldump.exe -u root -pitrade@124 u631028490_iTrade > u631028490_iT
 5 - Importar o BD:
 
 ```
-mysql.exe -u root -pitrade@124 u631028490_iTrade < u631028490_iTrade.sql
+mysql.exe -u root -p%PASSWORD% u631028490_iTrade < u631028490_iTrade.sql
 ```
 
 **_Powershell_**
 
 ```
-cmd.exe /c "mysql.exe -u root -pitrade@124 u631028490_iTrade < u631028490_iTrade.sql"
+cmd.exe /c "mysql.exe -u root -p%PASSWORD% u631028490_iTrade < u631028490_iTrade.sql"
 ```
 
 <br>
@@ -71,10 +71,10 @@ putenv('DISPLAY_ERRORS_DETAILS='. TRUE);
 putenv('DB_HOSTNAME=localhost');
 putenv('DB_PORT=3306');
 putenv('DB_USER=root');
-putenv('DB_PASS=itrade@124');
+putenv('DB_PASS=%PASSWORD%');
 putenv('DB_NAME=u631028490_iTrade');
 
-putenv('JWT_SECRET_KEY=NcQfTjWnZr4u7x!A%D*G-KaPdSgVkXp2s5v8y/B?E(H+MbQeThWmZq3t6w9z$C&F');
+putenv('JWT_SECRET_KEY=%ENCRYPTION_KEY_512%');
 putenv('JWT_SECURE=' . FALSE);
 ```
 
@@ -94,14 +94,14 @@ putenv('DISPLAY_ERRORS_DETAILS='. TRUE);
 putenv('DB_HOSTNAME=localhost');
 putenv('DB_PORT=3306');
 putenv('DB_USER=root');
-putenv('DB_PASS=itrade@124');
+putenv('DB_PASS=%PASSWORD%');
 putenv('DB_NAME=u631028490_iTrade');
 
-putenv('JWT_SECRET_KEY=ENCRYPTION_KEY_512');
+putenv('JWT_SECRET_KEY=%ENCRYPTION_KEY_512%');
 putenv('JWT_SECURE=' . TRUE);
 ```
 
-> Gerar a ENCRYPTION_KEY_512 em (https://www.allkeysgenerator.com/Random/Security-Encryption-Key-Generator.aspx)
+> Gerar a %ENCRYPTION_KEY_512% em (https://www.allkeysgenerator.com/Random/Security-Encryption-Key-Generator.aspx)
 
 7 - Carregar as dependencias do projeto
 
