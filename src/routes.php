@@ -3,23 +3,18 @@
 use function src\slimContainerConfig;
 use App\Controllers\{ AuthController, UsuarioController, DashboardController, DatasetController, AtivoController, GerenciamentoController, CenarioController, OperacaoController };
 use Tuupola\Middleware\JwtAuthentication;
+use Tuupola\Middleware\CorsMiddleware;
 
 $app = new \Slim\App(slimContainerConfig());
 
-$app->options('/{routes:.+}', function ($request, $response, $args) {
-    return $response;
-});
-
-// Middleware para CORS
-$app->add(function ($req, $res, $next) {
-    $response = $next($req, $res);
-
-    // Não ideal abrir para tudo
-    return $response
-        ->withHeader('Access-Control-Allow-Origin', '*')
-        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
-        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-});
+$app->add(new Tuupola\Middleware\CorsMiddleware([
+    "origin" => ["itrade-dongs.com.br", "192.168.*"],
+    "methods" => ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
+    "headers.allow" => ["Content-Type", "Authorization"],
+    "headers.expose" => [],
+    "credentials" => false,
+    "cache" => 86400,
+]));
 
 /****************
  * ROTA DE LOGIN
@@ -142,10 +137,5 @@ $app->group('', function () use ($app) {
     'secret' => getenv('JWT_SECRET_KEY'),
     'secure' => getenv('JWT_SECURE')
 ]));
-
-$app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function($req, $res) {
-    $handler = $this->notFoundHandler; // handle using the default Slim page not found handler
-    return $handler($req, $res);
-});
 
 $app->run();
