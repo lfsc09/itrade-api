@@ -28,3 +28,32 @@ It uses (https://github.com/TrafeX/docker-php-nginx) docker image for PHP-fpm wi
 ```bash
 docker compose up -d
 ```
+### Local Testing
+
+#### In Windows
+
+> https://stackoverflow.com/questions/8652948/using-port-number-in-windows-host-file
+
+Setting up the api url dns, for locally testing with front-end.
+
+In the `hosts` file of Windows.
+
+```properties
+127.x.x.x api.itrade-dongs.com.br
+```
+
+```bash
+netsh interface portproxy add v4tov4 listenport=80 listenaddress=127.x.x.x connectport=8001 connectaddress=192.168.0.4
+```
+
+You can test the choosen local IPv4 address with
+
+```bash
+netstat -a -n -p TCP | grep "LISTENING"
+```
+
+Show the proxy maps with
+
+```bash
+netsh interface portproxy show v4tov4
+```
