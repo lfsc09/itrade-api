@@ -6,6 +6,10 @@ use Tuupola\Middleware\JwtAuthentication;
 
 $app = new \Slim\App(slimContainerConfig());
 
+$app->options('/{routes:.+}', function ($request, $response, $args) {
+    return $response;
+});
+
 // Middleware para CORS
 $app->add(function ($req, $res, $next) {
     $response = $next($req, $res);
@@ -138,5 +142,10 @@ $app->group('', function () use ($app) {
     'secret' => getenv('JWT_SECRET_KEY'),
     'secure' => getenv('JWT_SECURE')
 ]));
+
+$app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function($req, $res) {
+    $handler = $this->notFoundHandler; // handle using the default Slim page not found handler
+    return $handler($req, $res);
+});
 
 $app->run();
