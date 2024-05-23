@@ -6,6 +6,17 @@ use Tuupola\Middleware\JwtAuthentication;
 
 $app = new \Slim\App(slimContainerConfig());
 
+// Middleware para CORS
+$app->add(function ($req, $res, $next) {
+    $response = $next($req, $res);
+
+    // Não ideal abrir para tudo
+    return $response
+        ->withHeader('Access-Control-Allow-Origin', '*')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+});
+
 /****************
  * ROTA DE LOGIN
  ****************/
