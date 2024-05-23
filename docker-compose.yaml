@@ -4,5 +4,4 @@ services:
     image: itrade-dongs-api-php
     build: .
     ports:
-      - 8001:80
-      
+      - 8001:8080
