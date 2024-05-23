@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  itrade-dongs-api-php:
+    image: itrade-dongs-api-php
+    build: .
+    ports:
+      - 8001:80
+      
