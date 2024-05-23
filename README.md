@@ -1,94 +1,12 @@
-### BD
+[![Static Badge](https://img.shields.io/badge/licence-MIT-brightgreen)](https://github.com/lfsc09/itrade-api/blob/main/LICENSE)
+![Static Badge](https://img.shields.io/badge/docker--compose-3.8-blue)
+[![Static Badge](https://img.shields.io/badge/trafex/php--nginx-latest-blue)](https://github.com/TrafeX/docker-php-nginx)
 
-Para desfragmentar a contagem de _ID_ em **_rv_operacoes_**:
+## Generate config file for Slim
 
-```
-SET @a:=0; UPDATE rv__operacoes SET id=@a:=@a+1 ORDER BY id;
-SET @lastID = (SELECT MAX(id)+1 FROM rv__operacoes);
-SET @query = CONCAT('ALTER TABLE rv__operacoes AUTO_INCREMENT=', @lastID);
-PREPARE stmt FROM @query;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-```
+Generate the **config.php** from _config.example.php_:
 
-### Para gerar ambientes locais (DEV)
-
-1 - Configurar no Apache **_httpd.conf_**:
-
-```
-<VirtualHost dev.api.itrade-dongs.net:80>
-    ServerName dev.api.itrade-dongs.net
-    DocumentRoot "[C|E]:\xampp\htdocs\itrade-api\public"
-</VirtualHost>
-```
-
-<br>
-
-2 - Jogar no **_host_** do windows
-
-```
-127.0.0.1 dev.api.itrade-dongs.net
-```
-
-<br>
-
-3 - Configurar o usuario de acesso no BD
-<br>
-
-4 - Exportar o BD:
-
-```
-mysqldump.exe -u root -p%PASSWORD% u631028490_iTrade > u631028490_iTrade.sql
-```
-
-**_Powershell_**
-
-```
-cmd.exe /c "mysqldump.exe -u root -p%PASSWORD% u631028490_iTrade > u631028490_iTrade.sql"
-```
-
-<br>
-
-5 - Importar o BD:
-
-```
-mysql.exe -u root -p%PASSWORD% u631028490_iTrade < u631028490_iTrade.sql
-```
-
-**_Powershell_**
-
-```
-cmd.exe /c "mysql.exe -u root -p%PASSWORD% u631028490_iTrade < u631028490_iTrade.sql"
-```
-
-<br>
-
-6 - Gerar o arquivo **config.php** a partir do _config.example.php_:
-
-```
-putenv('DISPLAY_ERRORS_DETAILS='. TRUE);
-
-putenv('DB_HOSTNAME=localhost');
-putenv('DB_PORT=3306');
-putenv('DB_USER=root');
-putenv('DB_PASS=%PASSWORD%');
-putenv('DB_NAME=u631028490_iTrade');
-
-putenv('JWT_SECRET_KEY=%ENCRYPTION_KEY_512%');
-putenv('JWT_SECURE=' . FALSE);
-```
-
-7 - Carregar as dependencias do projeto
-
-```
-composer update
-```
-
-### Para ambientes de produção (PROD)
-
-6 - Gerar o arquivo **config.php** a partir do _config.example.php_:
-
-```
+```php
 putenv('DISPLAY_ERRORS_DETAILS='. TRUE);
 
 putenv('DB_HOSTNAME=localhost');
@@ -101,10 +19,12 @@ putenv('JWT_SECRET_KEY=%ENCRYPTION_KEY_512%');
 putenv('JWT_SECURE=' . TRUE);
 ```
 
-> Gerar a %ENCRYPTION_KEY_512% em (https://www.allkeysgenerator.com/Random/Security-Encryption-Key-Generator.aspx)
+</br>
 
-7 - Carregar as dependencias do projeto
+## Deploy
 
-```
-composer update
+It uses (https://github.com/TrafeX/docker-php-nginx) docker image for PHP-fpm with Nginx.
+
+```bash
+docker compose up -d
 ```
