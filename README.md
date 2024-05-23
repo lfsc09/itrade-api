@@ -28,6 +28,7 @@ It uses (https://github.com/TrafeX/docker-php-nginx) docker image for PHP-fpm wi
 ```bash
 docker compose up -d
 ```
+
 ### Local Testing
 
 #### In Windows
