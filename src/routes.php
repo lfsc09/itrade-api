@@ -8,7 +8,7 @@ use Tuupola\Middleware\CorsMiddleware;
 $app = new \Slim\App(slimContainerConfig());
 
 $app->add(new Tuupola\Middleware\CorsMiddleware([
-    "origin" => ["itrade-dongs.com.br", "192.168.*"],
+    "origin" => ["*"],
     "methods" => ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
     "headers.allow" => ["Content-Type", "Authorization"],
     "headers.expose" => [],
