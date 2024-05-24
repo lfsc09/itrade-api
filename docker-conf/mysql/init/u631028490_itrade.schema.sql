@@ -64,7 +64,7 @@ CREATE TABLE `rv__cenario_obs` (
   `nome` text COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_cenario_2` (`id_cenario`,`ref`),
-  UNIQUE KEY `id_cenario` (`id_cenario`,`nome`) USING HASH
+  UNIQUE KEY `id_cenario` (`id_cenario`,nome(767)) USING HASH
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -162,7 +162,7 @@ CREATE TABLE `token` (
   `id_usuario` int(10) unsigned NOT NULL,
   `ip` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `token` (`token`) USING HASH,
+  UNIQUE KEY `token` (token(767)) USING HASH,
   KEY `id_usuario` (`id_usuario`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
