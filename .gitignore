@@ -1,3 +1,4 @@
 vendor/
+docker-volumes/
 composer.lock
 config.php

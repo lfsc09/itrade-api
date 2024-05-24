@@ -1,7 +1,18 @@
-version: '3.8'
+version: '3.9'
 services:
-  itrade-dongs-api-php:
-    image: itrade-dongs-api-php
-    build: .
-    ports:
-      - 8001:8080
+    itrade-dongs-api-php:
+        image: itrade-dongs-api-php
+        build: docker-conf/webserver/Dockerfile
+        ports:
+            - 8001:8080
+    itrade-dongs-mysql:
+        image: itrade-dongs-mysql
+        build: docker-conf/mysql/Dockerfile
+        cap_add:
+            - SYS_NICE
+        restart: always
+        ports:
+            - 8002:3306
+        volumes:
+            - ./docker-volumes/mysql-datavolume:/var/lib/mysql
+            - ./docker-volumes/mysql-filevolume:/filevolume

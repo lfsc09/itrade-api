@@ -1,5 +1,5 @@
 [![Static Badge](https://img.shields.io/badge/license-Apache--2.0-brightgreen)](https://github.com/lfsc09/itrade-api/blob/main/LICENSE)
-![Static Badge](https://img.shields.io/badge/docker--compose-3.8-blue)
+![Static Badge](https://img.shields.io/badge/docker--compose-3.9-blue)
 [![Static Badge](https://img.shields.io/badge/trafex/php--nginx-latest-blue)](https://github.com/TrafeX/docker-php-nginx)
 
 ## Generate config file for Slim
