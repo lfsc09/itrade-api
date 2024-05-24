@@ -2,12 +2,16 @@ version: '3.9'
 services:
     itrade-dongs-api-php:
         image: itrade-dongs-api-php
-        build: docker-conf/webserver/Dockerfile
+        build:
+            context: ./docker-conf/webserver
+            dockerfile: Dockerfile
         ports:
             - 8001:8080
     itrade-dongs-mysql:
         image: itrade-dongs-mysql
-        build: docker-conf/mysql/Dockerfile
+        build:
+            context: ./docker-conf/mysql
+            dockerfile: Dockerfile
         cap_add:
             - SYS_NICE
         restart: always

@@ -8,5 +8,5 @@ USER root
 RUN apk add --no-cache php83-pdo_mysql
 USER nobody
 COPY --chown=nginx --from=composer /app /var/www/html
-COPY docker-conf/server.conf /etc/nginx/conf.d/default.conf
-COPY docker-conf/php.ini /etc/php83/conf.d/settings.ini
+COPY docker-conf/webserver/server.conf /etc/nginx/conf.d/default.conf
+COPY docker-conf/webserver/php.ini /etc/php83/conf.d/settings.ini
