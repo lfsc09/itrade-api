@@ -15,8 +15,12 @@ services:
         cap_add:
             - SYS_NICE
         restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: sFg$8d7QW@sd
+            MYSQL_DATABASE: u631028490_itrade
         ports:
             - 8002:3306
         volumes:
             - ./docker-volumes/mysql-datavolume:/var/lib/mysql
             - ./docker-volumes/mysql-filevolume:/filevolume
+            - ./docker-conf/mysql/init:/docker-entrypoint-initdb.d/:ro
