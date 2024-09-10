@@ -14,15 +14,21 @@ putenv('DB_HOSTNAME=localhost');
 putenv('DB_PORT=3306');
 putenv('DB_USER=root');
 putenv('DB_PASS=%PASSWORD%');
-putenv('DB_NAME=u631028490_iTrade');
+putenv('DB_NAME=u631028490_itrade');
 
 putenv('JWT_SECRET_KEY=%ENCRYPTION_KEY_512%');
-putenv('JWT_SECURE=' . TRUE);
+putenv('JWT_SECURE=' . FALSE);
 ```
+
+> If you change the DB user password, also update it on `docker-conf/mysql/init/add-user.sql`.
+
+> To use `JWT_SECURE` as `TRUE`, the Webserver container `Dockerfile` must be changed to listen for `ssl` connections. Also the `fullchain.pem` and `privkey.pem` must be provided to the container.
 
 </br>
 
 ## Deploy
+
+> Make sure you did the step above before running the `compose up`.
 
 It uses (https://github.com/TrafeX/docker-php-nginx) docker image for PHP-fpm with Nginx.
 
