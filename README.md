@@ -23,6 +23,8 @@ putenv('JWT_SECURE=' . FALSE);
 > If you change the DB user password, also update it on `docker-conf/mysql/init/add-user.sql`.
 
 > To use `JWT_SECURE` as `TRUE`, the Webserver container `Dockerfile` must be changed to listen for `ssl` connections. Also the `fullchain.pem` and `privkey.pem` must be provided to the container.
+>
+> https://github.com/TrafeX/docker-php-nginx/blob/master/docs/enable-https.md
 
 </br>
 
